@@ -1,53 +1,12 @@
-import { DeviceConfigManifest, ConfigManifestEntryType } from '@sofie-automation/server-core-integration'
+import {
+	DeviceConfigManifest,
+	JSONBlobStringify,
+	JSONSchema,
+} from '@sofie-automation/server-core-integration'
+
+import ConfigSchema = require('./$schemas/options.json')
 
 export const INEWS_DEVICE_CONFIG_MANIFEST: DeviceConfigManifest = {
-	deviceConfig: [
-		{
-			id: 'hosts',
-			name: '',
-			type: ConfigManifestEntryType.TABLE,
-			defaultType: 'default',
-			config: {
-				default: [
-					{
-						id: 'host',
-						name: 'Host',
-						columnName: 'Hosts',
-						type: ConfigManifestEntryType.STRING,
-					},
-				],
-			},
-		},
-		{
-			id: 'queues',
-			name: '',
-			type: ConfigManifestEntryType.TABLE,
-			defaultType: 'default',
-			config: {
-				default: [
-					{
-						id: 'queues',
-						name: 'Queue',
-						columnName: 'Queues',
-						type: ConfigManifestEntryType.STRING,
-					},
-				],
-			},
-		},
-		{
-			id: 'user',
-			name: 'User',
-			type: ConfigManifestEntryType.STRING,
-		},
-		{
-			id: 'password',
-			name: 'Password',
-			type: ConfigManifestEntryType.STRING,
-		},
-		{
-			id: 'debug',
-			name: 'Debug Logging',
-			type: ConfigManifestEntryType.BOOLEAN,
-		},
-	],
+	deviceConfigSchema: JSONBlobStringify<JSONSchema>(ConfigSchema as any),
+	subdeviceManifest: {}
 }

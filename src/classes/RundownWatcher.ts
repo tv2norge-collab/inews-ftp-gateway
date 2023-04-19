@@ -3,7 +3,7 @@ import * as dotenv from 'dotenv'
 import { INewsRundown } from './datastructures/Rundown'
 import { RundownManager } from './RundownManager'
 import { RundownSegment, ISegment } from './datastructures/Segment'
-import { INewsQueue, InewsFTPHandler } from '../inewsHandler'
+import { InewsFTPHandler } from '../inewsHandler'
 import { INewsClient } from '@tv2media/inews'
 import { StatusCode } from '@sofie-automation/shared-lib/dist/lib/status'
 import { CoreHandler } from '../coreHandler'
@@ -198,7 +198,7 @@ export class RundownWatcher extends EventEmitter {
 		private logger: Logger,
 		private iNewsConnection: INewsClient,
 		private coreHandler: CoreHandler,
-		private iNewsQueue: Array<INewsQueue>,
+		private iNewsQueue: Array<string>,
 		private gatewayVersion: string,
 		private handler: InewsFTPHandler,
 		delayStart?: boolean
@@ -320,7 +320,7 @@ export class RundownWatcher extends EventEmitter {
 
 	async checkINewsRundowns(): Promise<void> {
 		for (let queue of this.iNewsQueue) {
-			await this.checkINewsRundownById(queue.queues)
+			await this.checkINewsRundownById(queue)
 		}
 	}
 

@@ -1,4 +1,4 @@
-import { CoreConnection, CoreOptions, DDPConnectorOptions, Observer } from '@sofie-automation/server-core-integration'
+import { CoreConnection, CoreOptions, DDPConnectorOptions, Observer, PeripheralDevicePublic, StudioId } from '@sofie-automation/server-core-integration'
 import { ILogger as Logger } from '@tv2media/logger'
 import * as fs from 'fs'
 import { Process } from './process'
@@ -22,7 +22,7 @@ import { ReflectPromise } from './helpers'
 import { ReducedRundown } from './classes/RundownWatcher'
 import { VersionIsCompatible } from './version'
 import { RundownId, SegmentId } from './helpers/id'
-import { protectString, unprotectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
+import { protectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 
 export interface PeripheralDeviceCommand {
 	_id: string
@@ -59,7 +59,7 @@ export class CoreHandler {
 	private _executedFunctions: { [id: string]: boolean } = {}
 	private _coreConfig?: CoreConfig
 	private _process?: Process
-	private _studioId?: string
+	private _studioId?: StudioId
 	public iNewsHandler?: InewsFTPHandler
 
 	constructor(logger: Logger, deviceOptions: DeviceConfig) {
@@ -217,17 +217,17 @@ export class CoreHandler {
 					case 'triggerReloadRundown':
 						const reloadRundownResult = await Promise.resolve(this.triggerReloadRundown(cmd.args[0]))
 						success = true
-						await this.core.callMethod(PeripheralDeviceAPIMethods.functionReply, [cmd._id, null, reloadRundownResult])
+						await this.core.callMethodRaw(PeripheralDeviceAPIMethods.functionReply, [cmd._id, null, reloadRundownResult])
 						break
 					case 'pingResponse':
 						let pingResponseResult = await Promise.resolve(this.pingResponse(cmd.args[0]))
 						success = true
-						await this.core.callMethod(PeripheralDeviceAPIMethods.functionReply, [cmd._id, null, pingResponseResult])
+						await this.core.callMethodRaw(PeripheralDeviceAPIMethods.functionReply, [cmd._id, null, pingResponseResult])
 						break
 					case 'retireExecuteFunction':
 						let retireExecuteFunctionResult = await Promise.resolve(this.retireExecuteFunction(cmd.args[0]))
 						success = true
-						await this.core.callMethod(PeripheralDeviceAPIMethods.functionReply, [
+						await this.core.callMethodRaw(PeripheralDeviceAPIMethods.functionReply, [
 							cmd._id,
 							null,
 							retireExecuteFunctionResult,
@@ -236,7 +236,7 @@ export class CoreHandler {
 					case 'killProcess':
 						let killProcessFunctionResult = await Promise.resolve(this.killProcess(cmd.args[0]))
 						success = true
-						await this.core.callMethod(PeripheralDeviceAPIMethods.functionReply, [
+						await this.core.callMethodRaw(PeripheralDeviceAPIMethods.functionReply, [
 							cmd._id,
 							null,
 							killProcessFunctionResult,
@@ -245,7 +245,7 @@ export class CoreHandler {
 					case 'getSnapshot':
 						let getSnapshotResult = await Promise.resolve(this.getSnapshot())
 						success = true
-						await this.core.callMethod(PeripheralDeviceAPIMethods.functionReply, [cmd._id, null, getSnapshotResult])
+						await this.core.callMethodRaw(PeripheralDeviceAPIMethods.functionReply, [cmd._id, null, getSnapshotResult])
 						break
 					default:
 						throw Error('Function "' + cmd.functionName + '" not found!')
@@ -254,7 +254,7 @@ export class CoreHandler {
 				this.logger.data(error).error(`executeFunction error ${success ? 'during execution' : 'on reply'}:`)
 				if (!success) {
 					await this.core
-						.callMethod(PeripheralDeviceAPIMethods.functionReply, [cmd._id, (error as any).toString(), null])
+						.callMethodRaw(PeripheralDeviceAPIMethods.functionReply, [cmd._id, (error as any).toString(), null])
 						.catch((e) => this.logger.data(e).error('executeFunction reply error after execution failure:'))
 				}
 			}
@@ -281,9 +281,9 @@ export class CoreHandler {
 		 */
 		// Note: Oberver is not expecting a promise.
 		let addedChangedCommand = (id: string): void => {
-			let cmds = this.core.getCollection('peripheralDeviceCommands')
+			let cmds = this.core.getCollection<PeripheralDeviceCommand>('peripheralDeviceCommands')
 			if (!cmds) throw Error('"peripheralDeviceCommands" collection not found!')
-			let cmd = cmds.findOne(id) as PeripheralDeviceCommand
+			let cmd = cmds.findOne(id)
 			if (!cmd) throw Error('PeripheralCommand "' + id + '" not found!')
 			if (cmd.deviceId === this.core.deviceId) {
 				this.executeFunction(cmd).catch((e) => this.logger.data(e).error(`Error executing command recieved from core:`))
@@ -328,13 +328,13 @@ export class CoreHandler {
 		this.killProcess(0)
 		this._observers.push(observer)
 
-		let addedChanged = (id: string) => {
+		let addedChanged = (id: PeripheralDeviceId) => {
 			// Check that collection exists.
-			let devices = this.core.getCollection('peripheralDevices')
+			let devices = this.core.getCollection<PeripheralDevicePublic>('peripheralDevices')
 			if (!devices) throw Error('"peripheralDevices" collection not found!')
 
 			// Find studio ID.
-			let dev = devices.findOne({ _id: id })
+			let dev = devices.findOne(id)
 			if ('studioId' in dev) {
 				if (dev['studioId'] !== this._studioId) {
 					this._studioId = dev['studioId']
@@ -345,13 +345,13 @@ export class CoreHandler {
 		}
 
 		observer.added = (id: string) => {
-			addedChanged(id)
+			addedChanged(protectString<PeripheralDeviceId>(id))
 		}
 		observer.changed = (id: string) => {
-			addedChanged(id)
+			addedChanged(protectString<PeripheralDeviceId>(id))
 		}
 
-		addedChanged(unprotectString(this.core.deviceId))
+		addedChanged(this.core.deviceId)
 	}
 	/**
 	 * Kills the gateway.
@@ -444,7 +444,7 @@ export class CoreHandler {
 		const ps: Array<Promise<IngestPlaylist>> = []
 		for (let id of playlistExternalIds) {
 			this.logger.debug(`Getting cache for playlist ${id}`)
-			ps.push(this.core.callMethod(PeripheralDeviceAPIMethods.dataPlaylistGet, [id]))
+			ps.push(this.core.callMethodRaw(PeripheralDeviceAPIMethods.dataPlaylistGet, [id]))
 		}
 
 		const results = await Promise.all(ps.map(ReflectPromise))
@@ -469,7 +469,7 @@ export class CoreHandler {
 		const ps: Array<Promise<IngestRundown>> = []
 		for (let id of rundownExternalIds) {
 			this.logger.debug(`Getting cache for rundown ${id}`)
-			ps.push(this.core.callMethod(PeripheralDeviceAPIMethods.dataRundownGet, [id]))
+			ps.push(this.core.callMethodRaw(PeripheralDeviceAPIMethods.dataRundownGet, [id]))
 		}
 
 		const results = await Promise.all(ps.map(ReflectPromise))
@@ -500,7 +500,7 @@ export class CoreHandler {
 		const cachedSegments: IngestSegment[] = []
 		const ps: Array<Promise<IngestSegment>> = []
 		for (let id of segmentExternalIds) {
-			ps.push(this.core.callMethod(PeripheralDeviceAPIMethods.dataSegmentGet, [rundownExternalId, id]))
+			ps.push(this.core.callMethodRaw(PeripheralDeviceAPIMethods.dataSegmentGet, [rundownExternalId, id]))
 		}
 
 		const results = await Promise.all(ps.map(ReflectPromise))

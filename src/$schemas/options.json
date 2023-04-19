@@ -1,0 +1,46 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://example.com/product.schema.json",
+	"title": "Playout Gateway Config",
+	"type": "object",
+	"properties": {
+		"hosts": {
+			"type": "array",
+			"ui:title": "Hosts",
+			"description": "iNews servers to connect to",
+			"items": {
+				"type": "string"
+			},
+			"default": []
+		},
+		"queues": {
+			"type": "array",
+			"ui:title": "Queues",
+			"description": "iNews rundowns to read",
+			"items": {
+				"type": "string"
+			},
+			"default": []
+		},
+		"user": {
+			"type": "string",
+			"ui:title": "User",
+			"description": "iNews username",
+			"default": ""
+		},
+		"password": {
+			"type": "string",
+			"ui:title": "Password",
+			"description": "iNews password",
+			"default": ""
+		},
+		"debug": {
+			"type": "boolean",
+			"ui:title": "Activate Debug Logging",
+			"description": "Activate Debug Logging",
+			"default": false
+		}
+	},
+	"required": [],
+	"additionalProperties": false
+}
