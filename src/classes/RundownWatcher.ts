@@ -232,17 +232,9 @@ export class RundownWatcher extends EventEmitter {
 		this.checkINewsRundowns()
 			.then(
 				async () => {
-					if (this.iNewsConnection.queueLength() > 0) {
-						this.logger.error(
-							`INews library queue length was ${this.iNewsConnection.queueLength()} when it should be 0.`
-						)
-					}
-
 					if (this.handler.isConnected) {
 						await this.coreHandler.setStatus(StatusCode.GOOD, [])
 					}
-
-					this.rundownManager.emptyInewsFtpBuffer()
 				},
 				async (error) => {
 					this.logger.data(error).error('Something went wrong during check:')

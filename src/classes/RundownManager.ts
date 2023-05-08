@@ -83,7 +83,7 @@ export class RundownManager {
 				if (rawSegment) {
 					const segment: UnrankedSegment = {
 						externalId: rawSegment.identifier,
-						name: rawSegment.fields.title.value ?? '',
+						name: rawSegment.fields.title?.value ?? '',
 						modified: parseModifiedDateFromInewsStoryWithFallbackToNow(rawSegment),
 						locator: rawSegment.locator,
 						rundownId: queueName,
@@ -117,7 +117,12 @@ export class RundownManager {
 
 		this._logger?.debug('Downloaded : ' + queueName + ' : ' + (storyFile as INewsFile).identifier)
 		/* Add fileId and update modifyDate to ftp reference in storyFile */
-		story.fields.modifyDate.value = `${storyFile.modified ? storyFile.modified.getTime() / 1000 : 0}`
+		const newModifyDate = `${storyFile.modified ? storyFile.modified.getTime() / 1000 : 0}`
+		if (story.fields.modifyDate) {
+			story.fields.modifyDate.value = newModifyDate
+		} else {
+			story.fields.modifyDate = { value: newModifyDate, attributes: {} }
+		}
 
 		this._logger?.debug(`Queue: ${queueName} Story: ${isFile(storyFile) ? storyFile.storyName : storyFile.file}`)
 
@@ -126,7 +131,7 @@ export class RundownManager {
 	}
 
 	public generateCuesFromLayoutField(story: INewsStory): void {
-		if (!story.fields.layout.value) {
+		if (!story.fields.layout?.value) {
 			return
 		}
 		this.addDesignLayoutCueToStory(story)
@@ -198,13 +203,6 @@ export class RundownManager {
 			return this.downloadINewsStory(queueName, segment)
 		} else {
 			return Promise.reject(`Cannot find rundown with Id ${queueName}`)
-		}
-	}
-
-	emptyInewsFtpBuffer() {
-		if (this.inewsConnection) {
-			this.inewsConnection._queue.queuedJobList.list = {}
-			this.inewsConnection._queue.inprogressJobList.list = {}
 		}
 	}
 }

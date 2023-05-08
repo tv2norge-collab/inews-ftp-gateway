@@ -36,7 +36,7 @@ export class RundownSegment implements ISegment {
 			rundownId: this.rundownId,
 			iNewsStory: {
 				...this.iNewsStory,
-				fields: { ...this.iNewsStory.fields, modifyDate: { value: '' } },
+				fields: { ...this.iNewsStory.fields, modifyDate: { value: '', attributes: {} } },
 				identifier: '',
 				id: '',
 				locator: '',
