@@ -2,7 +2,12 @@ import { InewsFTPHandler, INewsDeviceSettings } from './inewsHandler'
 import { CoreHandler, CoreConfig } from './coreHandler'
 import * as _ from 'underscore'
 import { Process } from './process'
-import { Observer, PeripheralDeviceId, PeripheralDevicePublic, protectString } from '@sofie-automation/server-core-integration'
+import {
+	Observer,
+	PeripheralDeviceId,
+	PeripheralDevicePublic,
+	protectString,
+} from '@sofie-automation/server-core-integration'
 import { ensureLogLevel, setLogLevel } from './logger'
 import { ILogger as Logger } from '@tv2media/logger'
 

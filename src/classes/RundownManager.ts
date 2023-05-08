@@ -1,5 +1,4 @@
-import { INewsClient, INewsDirItem, INewsFile, INewsStory } from '@tv2media/inews'
-import { promisify } from 'util'
+import { INewsClient, INewsFTPStoryOrQueue, INewsStory, INewsFTPStory } from '@tv2media/inews'
 import { INewsStoryGW } from './datastructures/Segment'
 import { ReducedRundown, ReducedSegment, UnrankedSegment } from './RundownWatcher'
 import { literal, parseModifiedDateFromInewsStoryWithFallbackToNow, ReflectPromise } from '../helpers'
@@ -7,19 +6,18 @@ import { VERSION } from '../version'
 import { SegmentId } from '../helpers/id'
 import { ILogger as Logger } from '@tv2media/logger'
 
-function isFile(f: INewsDirItem): f is INewsFile {
-	return f.filetype === 'file'
+function isStory(f: INewsFTPStoryOrQueue): f is INewsFTPStory {
+	return f.filetype === 'story'
 }
 
 export class RundownManager {
-	private _listStories!: (queueName: string) => Promise<Array<INewsDirItem>>
+	private _listStories!: (queueName: string) => Promise<Array<INewsFTPStoryOrQueue>>
 	private _getStory!: (queueName: string, story: string) => Promise<INewsStory>
 
 	constructor(private _logger?: Logger, private inewsConnection?: INewsClient) {
 		if (this.inewsConnection) {
-			// TODO: fix this as any
-			this._listStories = promisify(this.inewsConnection.list as any).bind(this.inewsConnection)
-			this._getStory = promisify(this.inewsConnection.story as any).bind(this.inewsConnection)
+			this._listStories = this.inewsConnection.list.bind(this.inewsConnection)
+			this._getStory = this.inewsConnection.story.bind(this.inewsConnection)
 		}
 	}
 
@@ -44,8 +42,8 @@ export class RundownManager {
 		}
 		try {
 			let dirList = await this._listStories(queueName)
-			dirList.forEach((ftpFileName: INewsDirItem, index) => {
-				if (isFile(ftpFileName)) {
+			dirList.forEach((ftpFileName: INewsFTPStoryOrQueue, index) => {
+				if (isStory(ftpFileName)) {
 					rundown.segments.push(
 						literal<ReducedSegment>({
 							externalId: ftpFileName.identifier,
@@ -102,20 +100,20 @@ export class RundownManager {
 	 * @param storyFile File to download.
 	 * @param oldRundown Old rundown to overwrite.
 	 */
-	async downloadINewsStory(queueName: string, storyFile: INewsDirItem): Promise<INewsStoryGW | undefined> {
+	async downloadINewsStory(queueName: string, storyFile: INewsFTPStoryOrQueue): Promise<INewsStoryGW | undefined> {
 		let story: INewsStoryGW
 		try {
 			story = {
 				...(await this._getStory(queueName, storyFile.file)),
-				identifier: (storyFile as INewsFile).identifier,
-				locator: (storyFile as INewsFile).locator,
+				identifier: (storyFile as INewsFTPStory).identifier,
+				locator: (storyFile as INewsFTPStory).locator,
 			}
 		} catch (err) {
 			this._logger?.error(`Error downloading iNews story: ${err}`)
 			return undefined
 		}
 
-		this._logger?.debug('Downloaded : ' + queueName + ' : ' + (storyFile as INewsFile).identifier)
+		this._logger?.debug('Downloaded : ' + queueName + ' : ' + (storyFile as INewsFTPStory).identifier)
 		/* Add fileId and update modifyDate to ftp reference in storyFile */
 		const newModifyDate = `${storyFile.modified ? storyFile.modified.getTime() / 1000 : 0}`
 		if (story.fields.modifyDate) {
@@ -124,7 +122,7 @@ export class RundownManager {
 			story.fields.modifyDate = { value: newModifyDate, attributes: {} }
 		}
 
-		this._logger?.debug(`Queue: ${queueName} Story: ${isFile(storyFile) ? storyFile.storyName : storyFile.file}`)
+		this._logger?.debug(`Queue: ${queueName} Story: ${isStory(storyFile) ? storyFile.storyName : storyFile.file}`)
 
 		this.generateCuesFromLayoutField(story)
 		return story
@@ -192,11 +190,13 @@ export class RundownManager {
 	async downloadINewsStoryById(
 		queueName: string,
 		segmentId: string,
-		dirList: Array<INewsDirItem>
+		dirList: Array<INewsFTPStoryOrQueue>
 	): Promise<INewsStoryGW | undefined> {
 		dirList = dirList || (await this._listStories(queueName))
 		if (dirList.length > 0) {
-			const segment = dirList.find((segment: INewsDirItem) => (segment as INewsFile).identifier === segmentId)
+			const segment = dirList.find(
+				(segment: INewsFTPStoryOrQueue) => (segment as INewsFTPStory).identifier === segmentId
+			)
 
 			if (!segment) return Promise.reject(`Cannot find segment with name ${segmentId}`)
 

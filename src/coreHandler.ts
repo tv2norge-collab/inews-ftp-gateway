@@ -1,4 +1,11 @@
-import { CoreConnection, CoreOptions, DDPConnectorOptions, Observer, PeripheralDevicePublic, StudioId } from '@sofie-automation/server-core-integration'
+import {
+	CoreConnection,
+	CoreOptions,
+	DDPConnectorOptions,
+	Observer,
+	PeripheralDevicePublic,
+	StudioId,
+} from '@sofie-automation/server-core-integration'
 import { ILogger as Logger } from '@tv2media/logger'
 import * as fs from 'fs'
 import { Process } from './process'
@@ -217,7 +224,11 @@ export class CoreHandler {
 					case 'triggerReloadRundown':
 						const reloadRundownResult = await Promise.resolve(this.triggerReloadRundown(cmd.args[0]))
 						success = true
-						await this.core.callMethodRaw(PeripheralDeviceAPIMethods.functionReply, [cmd._id, null, reloadRundownResult])
+						await this.core.callMethodRaw(PeripheralDeviceAPIMethods.functionReply, [
+							cmd._id,
+							null,
+							reloadRundownResult,
+						])
 						break
 					case 'pingResponse':
 						let pingResponseResult = await Promise.resolve(this.pingResponse(cmd.args[0]))
