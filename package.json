@@ -74,7 +74,7 @@
   "dependencies": {
     "@sofie-automation/blueprints-integration": "1.50.0-nightly-release50-20230329-111255-ee3307c.0",
     "@sofie-automation/server-core-integration": "1.50.0-nightly-release50-20230329-111255-ee3307c.0",
-    "@tv2media/inews": "git+https://github.com/tv2norge/node-inews.git#f2f5b54e4f0867995879fd6f91eaa1770a4ee061",
+    "@tv2media/inews": "git+https://github.com/tv2norge/node-inews.git#dbecdfeb3fe13f67d5ea1d950e0bf1feb82e33e7",
     "@tv2media/logger": "^1.2.4",
     "@sofie-automation/shared-lib": "npm:@tv2media/shared-lib@46.2.0",
     "@types/dotenv": "^6.1.1",
