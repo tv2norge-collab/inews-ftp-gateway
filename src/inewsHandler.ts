@@ -8,7 +8,7 @@ import { VERSION } from './version'
 import { ILogger as Logger } from '@tv2media/logger'
 import { StatusCode } from '@sofie-automation/shared-lib/dist/lib/status'
 import { PeripheralDeviceAPIMethods } from '@sofie-automation/shared-lib/dist/peripheralDevice/methodsAPI'
-import { PeripheralDevicePublic } from '@sofie-automation/server-core-integration'
+import { PeripheralDeviceForDevice } from '@sofie-automation/server-core-integration'
 
 export interface INewsDeviceSettings {
 	hosts?: Array<string>
@@ -44,7 +44,7 @@ export class InewsFTPHandler {
 
 	async init(coreHandler: CoreHandler): Promise<void> {
 		let peripheralDevice = await coreHandler.core.getPeripheralDevice()
-		this._settings = (peripheralDevice.settings || {}) as INewsDeviceSettings
+		this._settings = (peripheralDevice.deviceSettings || {}) as INewsDeviceSettings
 
 		try {
 			await this._setupDevices()
@@ -64,8 +64,8 @@ export class InewsFTPHandler {
 	/**
 	 * Find this peripheral device in peripheralDevices collection.
 	 */
-	private getThisPeripheralDevice(): PeripheralDevicePublic | undefined {
-		let peripheralDevices = this._coreHandler.core.getCollection<PeripheralDevicePublic>('peripheralDevices')
+	private getThisPeripheralDevice(): PeripheralDeviceForDevice | undefined {
+		let peripheralDevices = this._coreHandler.core.getCollection<PeripheralDeviceForDevice>('peripheralDeviceForDevice')
 		return peripheralDevices.findOne(this._coreHandler.core.deviceId)
 	}
 

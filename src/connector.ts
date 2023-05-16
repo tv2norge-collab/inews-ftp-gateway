@@ -5,7 +5,7 @@ import { Process } from './process'
 import {
 	Observer,
 	PeripheralDeviceId,
-	PeripheralDevicePublic,
+	PeripheralDeviceForDevice,
 	protectString,
 } from '@sofie-automation/server-core-integration'
 import { ensureLogLevel, setLogLevel } from './logger'
@@ -92,19 +92,19 @@ export class Connector {
 
 	setupObserver() {
 		// Setup observer.
-		let observer = this.coreHandler.core.observe('peripheralDevices')
+		let observer = this.coreHandler.core.observe('peripheralDeviceForDevice')
 		this._observers.push(observer)
 
 		let addedChanged = (id: PeripheralDeviceId) => {
 			// Check that collection exists.
-			let devices = this.coreHandler.core.getCollection<PeripheralDevicePublic>('peripheralDevices')
-			if (!devices) throw Error('"peripheralDevices" collection not found!')
+			let devices = this.coreHandler.core.getCollection<PeripheralDeviceForDevice>('peripheralDeviceForDevice')
+			if (!devices) throw Error('"peripheralDeviceForDevice" collection not found!')
 
 			// Find studio ID.
 			let dev = devices.findOne(id)
 
 			if (dev) {
-				let settings = (dev.settings || {}) as INewsDeviceSettings
+				let settings = (dev.deviceSettings || {}) as INewsDeviceSettings
 				settings.queues = settings.queues?.filter((q) => q !== '')
 				if (!this._settings || !_.isEqual(_.omit(settings, 'debug'), _.omit(this._settings, 'debug'))) {
 					this.iNewsFTPHandler

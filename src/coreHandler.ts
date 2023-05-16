@@ -3,7 +3,7 @@ import {
 	CoreOptions,
 	DDPConnectorOptions,
 	Observer,
-	PeripheralDevicePublic,
+	PeripheralDeviceForDevice,
 	StudioId,
 } from '@sofie-automation/server-core-integration'
 import { ILogger as Logger } from '@tv2media/logger'
@@ -12,7 +12,6 @@ import { Process } from './process'
 import {
 	PeripheralDeviceCategory,
 	PeripheralDeviceType,
-	PERIPHERAL_SUBTYPE_PROCESS,
 	StatusObject,
 } from '@sofie-automation/shared-lib/dist/peripheralDevice/peripheralDeviceAPI'
 import { PeripheralDeviceId } from '@sofie-automation/shared-lib/dist/core/model/Ids'
@@ -145,12 +144,13 @@ export class CoreHandler {
 			deviceToken: deviceOptions.deviceToken,
 			deviceCategory: PeripheralDeviceCategory.INGEST,
 			deviceType: PeripheralDeviceType.INEWS,
-			deviceSubType: PERIPHERAL_SUBTYPE_PROCESS,
 
 			deviceName: DEVICE_NAME,
 			watchDog: this._coreConfig ? this._coreConfig.watchdog : true,
 
 			configManifest: INEWS_DEVICE_CONFIG_MANIFEST,
+			documentationUrl: 'https://github.com/tv2norge/inews-ftp-gateway',
+			versions: this._getVersions()
 		}
 
 		if (!options.deviceToken) {
@@ -158,7 +158,6 @@ export class CoreHandler {
 			options.deviceToken = 'unsecureToken'
 		}
 
-		options.versions = this._getVersions()
 		return options
 	}
 	/**
@@ -194,7 +193,7 @@ export class CoreHandler {
 
 		this.logger.info(`Core: Setting up subscriptions for ${this.core.deviceId}..`)
 		let subs = await Promise.all([
-			this.core.autoSubscribe('peripheralDevices', {
+			this.core.autoSubscribe('peripheralDeviceForDevice', {
 				_id: this.core.deviceId,
 			}),
 			this.core.autoSubscribe('peripheralDeviceCommands', this.core.deviceId),
@@ -335,18 +334,18 @@ export class CoreHandler {
 	setupObserverForPeripheralDevices() {
 		this.logger.info(`Core: Setting up observers for peripheral devices on ${this.core.deviceId}..`)
 		// Setup observer.
-		let observer = this.core.observe('peripheralDevices')
+		let observer = this.core.observe('peripheralDeviceForDevice')
 		this.killProcess(0)
 		this._observers.push(observer)
 
 		let addedChanged = (id: PeripheralDeviceId) => {
 			// Check that collection exists.
-			let devices = this.core.getCollection<PeripheralDevicePublic>('peripheralDevices')
-			if (!devices) throw Error('"peripheralDevices" collection not found!')
+			let devices = this.core.getCollection<PeripheralDeviceForDevice>('peripheralDeviceForDevice')
+			if (!devices) throw Error('"peripheralDeviceForDevice" collection not found!')
 
 			// Find studio ID.
 			let dev = devices.findOne(id)
-			if ('studioId' in dev) {
+			if (dev && 'studioId' in dev) {
 				if (dev['studioId'] !== this._studioId) {
 					this._studioId = dev['studioId']
 				}
