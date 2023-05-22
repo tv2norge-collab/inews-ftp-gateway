@@ -161,7 +161,7 @@ jobs:
         with:
           images: ${{ steps.login-ecr.outputs.registry }}/${{ github.event.repository.name }}
           tags: |
-            type=ref,event=tag        
+            type=ref,event=branch        
 
       - name: Build and push docker image tags
         id: docker_build
