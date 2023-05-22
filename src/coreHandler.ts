@@ -150,7 +150,7 @@ export class CoreHandler {
 
 			configManifest: INEWS_DEVICE_CONFIG_MANIFEST,
 			documentationUrl: 'https://github.com/tv2norge/inews-ftp-gateway',
-			versions: this._getVersions()
+			versions: this._getVersions(),
 		}
 
 		if (!options.deviceToken) {
