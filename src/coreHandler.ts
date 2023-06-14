@@ -103,6 +103,9 @@ export class CoreHandler {
 		await this.core.init(ddpConfig)
 
 		await this.setStatus(StatusCode.UNKNOWN, ['Starting up'])
+
+		// We only want to call this once, because it handles reconnects and re-subscribing on its own.
+		// Additional calls will result in duplicated subscriptions and degraded performance.
 		await this.setupSubscriptionsAndObservers()
 
 		this._isInitialized = true
@@ -167,9 +170,6 @@ export class CoreHandler {
 		// The following command was placed after subscription setup but being
 		// executed before it.
 		if (this._onConnected) this._onConnected()
-		await this.setupSubscriptionsAndObservers().catch((error) => {
-			this.logger.data(error).error('setupSubscriptionsAndObservers error:')
-		})
 		this.iNewsHandler?.restartWatcher()
 	}
 	/**
@@ -193,9 +193,7 @@ export class CoreHandler {
 
 		this.logger.info(`Core: Setting up subscriptions for ${this.core.deviceId}..`)
 		let subs = await Promise.all([
-			this.core.autoSubscribe('peripheralDeviceForDevice', {
-				_id: this.core.deviceId,
-			}),
+			this.core.autoSubscribe('peripheralDeviceForDevice', this.core.deviceId),
 			this.core.autoSubscribe('peripheralDeviceCommands', this.core.deviceId),
 			this.core.autoSubscribe('ingestDataCache', {}),
 		])
