@@ -72,9 +72,9 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@sofie-automation/blueprints-integration": "1.50.0-nightly-release50-20230516-134537-ed473c7.0",
-    "@sofie-automation/server-core-integration": "1.50.0-nightly-release50-20230516-134537-ed473c7.0",
-    "@sofie-automation/shared-lib": "npm:@tv2media/shared-lib@46.2.0",
+    "@sofie-automation/blueprints-integration": "1.50.0-nightly-release50-20230613-150927-4a50654.0",
+    "@sofie-automation/server-core-integration": "1.50.0-nightly-release50-20230613-150927-4a50654.0",
+    "@sofie-automation/shared-lib": "1.50.0-nightly-release50-20230613-150927-4a50654.0",
     "@tv2media/inews": "git+https://github.com/tv2norge/node-inews.git#4612af1b4d17f6e4d0df6f325220db90873aa4af",
     "@tv2media/logger": "^1.2.4",
     "@types/dotenv": "^6.1.1",

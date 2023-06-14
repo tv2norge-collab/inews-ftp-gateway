@@ -11,8 +11,8 @@ import * as fs from 'fs'
 import { Process } from './process'
 import {
 	PeripheralDeviceCategory,
+	PeripheralDeviceStatusObject,
 	PeripheralDeviceType,
-	StatusObject,
 } from '@sofie-automation/shared-lib/dist/peripheralDevice/peripheralDeviceAPI'
 import { PeripheralDeviceId } from '@sofie-automation/shared-lib/dist/core/model/Ids'
 import { StatusCode } from '@sofie-automation/shared-lib/dist/lib/status'
@@ -120,7 +120,7 @@ export class CoreHandler {
 	/**
 	 * Report gateway status to core
 	 */
-	async setStatus(statusCode: StatusCode, messages: string[]): Promise<StatusObject> {
+	async setStatus(statusCode: StatusCode, messages: string[]): Promise<PeripheralDeviceStatusObject> {
 		try {
 			return this.core.setStatus({
 				statusCode: statusCode,
