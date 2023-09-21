@@ -415,21 +415,21 @@
   resolved "https://registry.yarnpkg.com/@sindresorhus/is/-/is-4.6.0.tgz#3c7c9c46e678feefe7a2e5bb609d3dbd665ffb3f"
   integrity sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw==
 
-"@sofie-automation/blueprints-integration@1.50.0-in-testing.2":
-  version "1.50.0-in-testing.2"
-  resolved "https://registry.yarnpkg.com/@sofie-automation/blueprints-integration/-/blueprints-integration-1.50.0-in-testing.2.tgz#5516513a995e8e5cd9f75809f811764f105e046d"
-  integrity sha512-H77oPLlgfEnEr6D+5jHnPj9PrjAs5Jqt0uewZ4FYYB440/rezRxhDPkXlIH0nFMR5fi5rfPSXMJ/I4OuUep4Fw==
+"@sofie-automation/blueprints-integration@1.50.0-in-testing.5":
+  version "1.50.0-in-testing.5"
+  resolved "https://registry.yarnpkg.com/@sofie-automation/blueprints-integration/-/blueprints-integration-1.50.0-in-testing.5.tgz#0835ad43752fe6aa234ff2904acf5e2cc3e4a2c7"
+  integrity sha512-Pi8Ityv3Payq9qqAS026SfYqd+9o4IOnLlb/u37uKp9bODDaXHfor+VbA0NPPosS50BbaNJhA21FVF8a9hd4Bg==
   dependencies:
-    "@sofie-automation/shared-lib" "1.50.0-in-testing.2"
+    "@sofie-automation/shared-lib" "1.50.0-in-testing.5"
     tslib "^2.4.0"
     type-fest "^2.19.0"
 
-"@sofie-automation/server-core-integration@1.50.0-in-testing.2":
-  version "1.50.0-in-testing.2"
-  resolved "https://registry.yarnpkg.com/@sofie-automation/server-core-integration/-/server-core-integration-1.50.0-in-testing.2.tgz#eeb3ce0aa0e5ca64e3e54c7e4b5d9abe4a1a8aa7"
-  integrity sha512-rJeX+Ow9jegMAkKo+1W+pMSukQjVrSqcJIG7ah3GcsHx8HkEXq125MXlGl1yKYFUy4J1asZEEfjYXbcFLgJWMw==
+"@sofie-automation/server-core-integration@1.50.0-in-testing.5":
+  version "1.50.0-in-testing.5"
+  resolved "https://registry.yarnpkg.com/@sofie-automation/server-core-integration/-/server-core-integration-1.50.0-in-testing.5.tgz#a2cb9c1977aaf31b1c48bbc1fd45b84d943d942e"
+  integrity sha512-8aDADMjDDgmHdAQLqTnuz/3PhU8HitnXCv+qgL7W1jei26gOSCF2CMc35f7U2xSL0sJKxY7eaY76ay584eZmwA==
   dependencies:
-    "@sofie-automation/shared-lib" "1.50.0-in-testing.2"
+    "@sofie-automation/shared-lib" "1.50.0-in-testing.5"
     ejson "^2.2.3"
     eventemitter3 "^4.0.7"
     faye-websocket "^0.11.4"
@@ -444,6 +444,16 @@
   dependencies:
     "@mos-connection/model" "^3.0.4"
     timeline-state-resolver-types "9.0.0-release50.5"
+    tslib "^2.4.0"
+    type-fest "^2.19.0"
+
+"@sofie-automation/shared-lib@1.50.0-in-testing.5":
+  version "1.50.0-in-testing.5"
+  resolved "https://registry.yarnpkg.com/@sofie-automation/shared-lib/-/shared-lib-1.50.0-in-testing.5.tgz#77813ec6acf55ec7eefa6954497eeaf572931857"
+  integrity sha512-oQd8Q8qAdAf0qxDwh4XSxFgo/ZCVAgO04820Y3kL9z7o+aAR9rlvKQV3g+ULTpqfgEHz+hypgcMta7lcE7oJsQ==
+  dependencies:
+    "@mos-connection/model" "^3.0.4"
+    timeline-state-resolver-types "9.0.0-release50.6"
     tslib "^2.4.0"
     type-fest "^2.19.0"
 
@@ -5758,6 +5768,13 @@ timeline-state-resolver-types@9.0.0-release50.5:
   version "9.0.0-release50.5"
   resolved "https://registry.yarnpkg.com/timeline-state-resolver-types/-/timeline-state-resolver-types-9.0.0-release50.5.tgz#7f6cfe67dcf706e5d94c370f0fd86cf1328e85d9"
   integrity sha512-WtbFa4xcwgwWET5CFNZ1wgzfvySOCP+mXrISjSRrgMoTuRz8vHnR22woM5HUE1eHmhsSlgrZxwP61b7/0JB4kQ==
+  dependencies:
+    tslib "^2.5.1"
+
+timeline-state-resolver-types@9.0.0-release50.6:
+  version "9.0.0-release50.6"
+  resolved "https://registry.yarnpkg.com/timeline-state-resolver-types/-/timeline-state-resolver-types-9.0.0-release50.6.tgz#1290b1413afc2e9233bbfb8ffd79f5a070de75e6"
+  integrity sha512-00c/238OFLhdgQsuvsg5tYHI4YXqhRZg0OnBqIitGetplGtqWLoqIaxy4H9vbHkUNLoXzIuo/Cnffxk5amdAKg==
   dependencies:
     tslib "^2.5.1"
 
