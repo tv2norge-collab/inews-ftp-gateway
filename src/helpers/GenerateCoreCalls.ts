@@ -106,16 +106,20 @@ export function GenerateCoreCalls(
 			untimedSegments
 		)
 	)
-	coreCalls.push(
-		...createMetaDataUpdateCoreCalls(
-			changes,
-			playlistAssignments,
-			playlistId,
-			iNewsDataCache,
-			assignedRanks,
-			untimedSegments
-		)
+
+	// We'll be using these more than once:
+	const metaDataUpdateCoreCalls = createMetaDataUpdateCoreCalls(
+		changes,
+		playlistAssignments,
+		playlistId,
+		iNewsDataCache,
+		assignedRanks,
+		untimedSegments
 	)
+
+	// Ensure that metadata will be available to Segment operations.
+	coreCalls.push(...metaDataUpdateCoreCalls)
+
 	coreCalls.push(
 		...createSegmentChangedCoreCalls(changes, iNewsDataCache, assignedRanks, ingestCacheData, untimedSegments)
 	)
@@ -123,6 +127,7 @@ export function GenerateCoreCalls(
 		...createSegmentCreatedCoreCalls(changes, iNewsDataCache, assignedRanks, ingestCacheData, untimedSegments)
 	)
 	coreCalls.push(...createSegmentMovedCoreCalls(changes, assignedRanks, ingestCacheData))
+
 	coreCalls.push(
 		...createRundownUpdatedCoreCalls(
 			changes,
@@ -133,6 +138,10 @@ export function GenerateCoreCalls(
 			untimedSegments
 		)
 	)
+
+	// Ensure that metadata will be available to Rundown operations, but with all the latest information about Segments.
+	// This is required for the Milestone timing mode in Sofie, which needs to have knowledge of all Segments to determine timing information.
+	coreCalls.push(...metaDataUpdateCoreCalls)
 
 	return coreCalls
 }

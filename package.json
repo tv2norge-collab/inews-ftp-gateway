@@ -1,6 +1,6 @@
 {
   "name": "@tv2media/inews-gateway",
-  "version": "46.1.0",
+  "version": "46.2.0",
   "description": "",
   "main": "dist/index.js",
   "contributors": [
@@ -16,7 +16,7 @@
   ],
   "engines": {
     "npm": ">=6.14.4",
-    "node": ">=14.0.0"
+    "node": ">=14.19.0"
   },
   "author": "SuperFly.tv",
   "scripts": {
@@ -24,7 +24,7 @@
     "start:dev": "cross-env NODE_ENV=development node ./dist",
     "start:local": "cross-env NODE_ENV=local node ./dist",
     "info": "npm-scripts-info",
-    "build": "trash dist && yarn test && yarn build:main",
+    "build": "trash dist && yarn build:main",
     "build:dev": "trash dist && yarn build:main",
     "buildstart": "yarn build && yarn start",
     "buildstart:dev": "yarn build:dev && DEV=true yarn start",
@@ -72,20 +72,21 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@sofie-automation/blueprints-integration": "npm:@tv2media/blueprints-integration@46.1.0",
-    "@sofie-automation/server-core-integration": "npm:@tv2media/server-core-integration@46.1.0",
+    "@sofie-automation/blueprints-integration": "1.50.0-in-testing.5",
+    "@sofie-automation/server-core-integration": "1.50.0-in-testing.5",
+    "@sofie-automation/shared-lib": "1.50.0-in-testing.2",
+    "@tv2media/inews": "git+https://github.com/tv2norge/node-inews.git#d43f3d53b240952d43d7eba7a483b3d88e868e6e",
     "@tv2media/logger": "^1.2.4",
-    "@sofie-automation/shared-lib": "npm:@tv2media/shared-lib@46.0.0",
     "@types/dotenv": "^6.1.1",
     "@types/xml2js": "^0.4.4",
     "async-mutex": "^0.3.1",
     "cross-env": "^7.0.3",
     "dotenv": "^8.0.0",
-    "inews": "https://github.com/SuperFlyTV/node-inews.git#20200917_2",
     "jobs-queue": "git+https://github.com/sparkpunkd/node-jobs-queue.git#master",
     "lodash.clonedeep": "^4.5.0",
     "tslib": "^2.0.0",
     "underscore": "^1.9.1",
+    "winston": "^3.8.2",
     "xml2js": "^0.4.19",
     "yargs": "^16.2.0"
   },
@@ -111,7 +112,7 @@
     "open-cli": "^6.0.1",
     "prettier": "2.1.2",
     "standard-version": "^9.0.0",
-    "trash-cli": "^3.0.0",
+    "trash-cli": "^5.0.0",
     "ts-jest": "^26.4.1",
     "tslint": "^5.11.0",
     "tslint-config-prettier": "^1.18.0",

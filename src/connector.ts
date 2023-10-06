@@ -2,10 +2,14 @@ import { InewsFTPHandler, INewsDeviceSettings } from './inewsHandler'
 import { CoreHandler, CoreConfig } from './coreHandler'
 import * as _ from 'underscore'
 import { Process } from './process'
-import { Observer } from '@sofie-automation/server-core-integration'
+import {
+	Observer,
+	PeripheralDeviceId,
+	PeripheralDeviceForDevice,
+	protectString,
+} from '@sofie-automation/server-core-integration'
 import { ensureLogLevel, setLogLevel } from './logger'
 import { ILogger as Logger } from '@tv2media/logger'
-import { unprotectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 
 export interface Config {
 	process: ProcessConfig
@@ -88,20 +92,20 @@ export class Connector {
 
 	setupObserver() {
 		// Setup observer.
-		let observer = this.coreHandler.core.observe('peripheralDevices')
+		let observer = this.coreHandler.core.observe('peripheralDeviceForDevice')
 		this._observers.push(observer)
 
-		let addedChanged = (id: string) => {
+		let addedChanged = (id: PeripheralDeviceId) => {
 			// Check that collection exists.
-			let devices = this.coreHandler.core.getCollection('peripheralDevices')
-			if (!devices) throw Error('"peripheralDevices" collection not found!')
+			let devices = this.coreHandler.core.getCollection<PeripheralDeviceForDevice>('peripheralDeviceForDevice')
+			if (!devices) throw Error('"peripheralDeviceForDevice" collection not found!')
 
 			// Find studio ID.
-			let dev = devices.findOne({ _id: id })
+			let dev = devices.findOne(id)
 
 			if (dev) {
-				let settings: INewsDeviceSettings = dev.settings || {}
-				settings.queues = settings.queues?.filter((q) => q.queues !== '')
+				let settings = (dev.deviceSettings || {}) as INewsDeviceSettings
+				settings.queues = settings.queues?.filter((q) => q !== '')
 				if (!this._settings || !_.isEqual(_.omit(settings, 'debug'), _.omit(this._settings, 'debug'))) {
 					this.iNewsFTPHandler
 						.dispose()
@@ -126,12 +130,12 @@ export class Connector {
 		}
 
 		observer.added = (id: string) => {
-			addedChanged(id)
+			addedChanged(protectString<PeripheralDeviceId>(id))
 		}
 		observer.changed = (id: string) => {
-			addedChanged(id)
+			addedChanged(protectString<PeripheralDeviceId>(id))
 		}
 
-		addedChanged(unprotectString(this.coreHandler.core.deviceId))
+		addedChanged(this.coreHandler.core.deviceId)
 	}
 }
