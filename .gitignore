@@ -10,3 +10,11 @@ coverage
 
 # Ignore JetBrain specific files
 .idea
+
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
