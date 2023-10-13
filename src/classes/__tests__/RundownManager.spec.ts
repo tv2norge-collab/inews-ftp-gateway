@@ -89,7 +89,7 @@ describe('RundownManager', () => {
 			testee.generateCuesFromLayoutField(story)
 
 			const cueIndex = story.cues!.findIndex((cue) => cue!.some((line) => line.match(/DESIGN_BG=/i)))
-			expect(story.body!.match(`<\a idref="${cueIndex}"><\\/a>`)).toBeTruthy()
+			expect(story.body!.match(`<a idref="${cueIndex}"><\\/a>`)).toBeTruthy()
 		})
 	})
 })
@@ -99,22 +99,23 @@ function createStory(layout?: string, body?: string): INewsStoryGW {
 		id: '',
 		identifier: '',
 		fields: {
-			title: { value: '' },
-			modifyDate: { value: '' },
-			tapeTime: { value: '' },
-			audioTime: { value: '' },
-			totalTime: { value: '' },
-			cumeTime: { value: '' },
-			backTime: { value: '' },
-			pageNumber: { value: '' },
-			layout: { value: layout ?? '' },
-			runsTime: { value: '' },
-			videoId: { value: '' },
+			title: { value: '', attributes: {} },
+			modifyDate: { value: '', attributes: {} },
+			tapeTime: { value: '', attributes: {} },
+			audioTime: { value: '', attributes: {} },
+			totalTime: { value: '', attributes: {} },
+			cumeTime: { value: '', attributes: {} },
+			backTime: { value: '', attributes: {} },
+			pageNumber: { value: '', attributes: {} },
+			layout: { value: layout ?? '', attributes: {} },
+			runsTime: { value: '', attributes: {} },
+			videoId: { value: '', attributes: {} },
 		},
-		body: body ? body : '<p></p>',
+		body: body ?? '<p></p>',
 		cues: [],
 		locator: '',
 		meta: {},
+		attachments: {},
 	}
 }
 
@@ -125,5 +126,5 @@ function testCorrectCueReferenceInLink(numberOfExistingCues: number): void {
 	}
 
 	testee.generateCuesFromLayoutField(story)
-	expect(story.body!.match(`<\a idref="${numberOfExistingCues}"><\\/a>`)).toBeTruthy()
+	expect(story.body!.match(`<a idref="${numberOfExistingCues}"><\\/a>`)).toBeTruthy()
 }
