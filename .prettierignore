@@ -5,3 +5,4 @@ dist
 **/**/__mocks_/*.json
 *.yml
 coverage
+.yarn/
