@@ -30,7 +30,7 @@ jobs:
           key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
 
       - name: yarn install
-        run: yarn install --check-files --frozen-lockfile
+        run: yarn install --immutable
 
       - name: yarn validate:dependencies
         run: yarn validate:dependencies

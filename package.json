@@ -49,7 +49,7 @@
     "release": "yarn reset && yarn test && yarn changelog",
     "reset": "git clean -dfx && git reset --hard && yarn",
     "ci": "yarn test",
-    "validate:dependencies": "yarn audit --groups dependencies",
+    "validate:dependencies": "yarn npm audit --environment production",
     "license-validate": "node-license-validator -p -d --allow-licenses MIT MIT/X11 BSD BSD-3-Clause BSD-2-Clause ISC Apache Apache-2.0 Unlicense --allow-packages cycle",
     "unlinkall": "yarn unlink @sofie-automation/server-core-integration && yarn --check-files"
   },
