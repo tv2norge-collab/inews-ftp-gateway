@@ -52,9 +52,10 @@ describe('GenerateCoreCalls', () => {
 			new Set()
 		)
 
-		expect(result).toHaveLength(2)
+		expect(result).toHaveLength(3)
 		expect(result[0].type).toEqual(CoreCallType.dataRundownMetaDataUpdate)
 		expect(result[1].type).toEqual(CoreCallType.dataSegmentUpdate)
+		expect(result[2].type).toEqual(CoreCallType.dataRundownMetaDataUpdate)
 	})
 })
 
@@ -64,19 +65,21 @@ function makeINewsStory(id: string, backTime?: string) {
 		identifier: id,
 		locator: '',
 		fields: literal<INewsFields>({
-			title: { value: '' },
-			modifyDate: { value: '' },
-			tapeTime: { value: '' },
-			audioTime: { value: '' },
-			totalTime: { value: '' },
-			cumeTime: { value: '' },
-			backTime: { value: backTime },
-			pageNumber: { value: '' },
-			layout: { value: '' },
-			runsTime: { value: '' },
+			title: { value: '', attributes: {} },
+			modifyDate: { value: '', attributes: {} },
+			tapeTime: { value: '', attributes: {} },
+			audioTime: { value: '', attributes: {} },
+			totalTime: { value: '', attributes: {} },
+			cumeTime: { value: '', attributes: {} },
+			backTime: { value: backTime ?? '', attributes: {} },
+			pageNumber: { value: '', attributes: {} },
+			layout: { value: '', attributes: {} },
+			runsTime: { value: '', attributes: {} },
+			videoId: { value: '', attributes: {} },
 		}),
 		meta: {},
 		cues: [],
 		body: '',
+		attachments: {},
 	})
 }
