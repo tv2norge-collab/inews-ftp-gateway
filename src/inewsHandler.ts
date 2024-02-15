@@ -81,7 +81,8 @@ export class InewsFTPHandler {
 			hosts: this._settings.hosts ?? [],
 			user: this._settings.user,
 			password: this._settings.password,
-			timeout: 10000,
+			timeout: 60000, // 60s, as originally in the node-inews library
+			operationTimeout: 60000, // 60s, this is new in node-inews after the TS rewrite; setting it too low may result in never getting any data if the server/connection is slow
 		})
 
 		this.iNewsConnection.on('status', async (status) => {
