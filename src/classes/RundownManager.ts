@@ -11,14 +11,22 @@ function isStory(f: INewsFTPStoryOrQueue): f is INewsFTPStory {
 }
 
 export class RundownManager {
-	private _listStories!: (queueName: string) => Promise<Array<INewsFTPStoryOrQueue>>
-	private _getStory!: (queueName: string, story: string) => Promise<INewsStory>
 
-	constructor(private _logger?: Logger, private inewsConnection?: INewsClient) {
+	constructor(private _logger: Logger, private inewsConnection: INewsClient) {
 		if (this.inewsConnection) {
 			this._listStories = this.inewsConnection.list.bind(this.inewsConnection)
 			this._getStory = this.inewsConnection.story.bind(this.inewsConnection)
 		}
+	}
+
+	private _listStories(queueName: string): Promise<Array<INewsFTPStoryOrQueue>> {
+		this._logger.debug(`Listing stories in rundown "${queueName}"`)
+		return this.inewsConnection.list(queueName)
+	}
+
+	private _getStory(queueName: string, story: string): Promise<INewsStory> {
+		this._logger.debug(`Fetching story "${story}" in rundown "${queueName}"`)
+		return this.inewsConnection.story(queueName, story)
 	}
 
 	/**
