@@ -569,53 +569,41 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sofie-automation/blueprints-integration@npm:1.50.0-in-testing.5":
-  version: 1.50.0-in-testing.5
-  resolution: "@sofie-automation/blueprints-integration@npm:1.50.0-in-testing.5"
+"@sofie-automation/blueprints-integration@npm:1.50.1":
+  version: 1.50.1
+  resolution: "@sofie-automation/blueprints-integration@npm:1.50.1"
   dependencies:
-    "@sofie-automation/shared-lib": 1.50.0-in-testing.5
+    "@sofie-automation/shared-lib": 1.50.1
     tslib: ^2.4.0
     type-fest: ^2.19.0
-  checksum: d18b9a09f3d460109bb1c1bf61fb793459802534dd05a809d825f6130a96ccc9887f87cff026ef611353a1acccc159d31521da3a1e40823008a59ab8d83e992f
+  checksum: 2c8e701e6ca574576fa6c8be71168b450cb45d851dae1c9ec7b69d11d71b760f56ae3586a0170254370000d37fed1a21159766229ebf347c62a431368ca400dc
   languageName: node
   linkType: hard
 
-"@sofie-automation/server-core-integration@npm:1.50.0-in-testing.5":
-  version: 1.50.0-in-testing.5
-  resolution: "@sofie-automation/server-core-integration@npm:1.50.0-in-testing.5"
+"@sofie-automation/server-core-integration@npm:1.50.1":
+  version: 1.50.1
+  resolution: "@sofie-automation/server-core-integration@npm:1.50.1"
   dependencies:
-    "@sofie-automation/shared-lib": 1.50.0-in-testing.5
+    "@sofie-automation/shared-lib": 1.50.1
     ejson: ^2.2.3
     eventemitter3: ^4.0.7
     faye-websocket: ^0.11.4
     got: ^11.8.6
     tslib: ^2.4.0
     underscore: ^1.13.4
-  checksum: e066dcaa862332b3f842b086972563e97dacfd6b065ed0b930969396dcad9c4d33e97eeef42410d1ede390b90858745040b2c47fa11aa6fa410c7b1999889847
+  checksum: 3968fa66ad0ee52ba287d57b518680c94b5b1282667a830acc4eb8059307e21d9dd1ef3cff1f388834526779b45644203351951f5d8edfc9b62b959d4b28cdcd
   languageName: node
   linkType: hard
 
-"@sofie-automation/shared-lib@npm:1.50.0-in-testing.2":
-  version: 1.50.0-in-testing.2
-  resolution: "@sofie-automation/shared-lib@npm:1.50.0-in-testing.2"
+"@sofie-automation/shared-lib@npm:1.50.1":
+  version: 1.50.1
+  resolution: "@sofie-automation/shared-lib@npm:1.50.1"
   dependencies:
     "@mos-connection/model": ^3.0.4
-    timeline-state-resolver-types: 9.0.0-release50.5
+    timeline-state-resolver-types: 9.0.0
     tslib: ^2.4.0
     type-fest: ^2.19.0
-  checksum: 8a52b1f63f40d53a2b78b7624d80ffde0627beb62786efb4d632755743875323e156844615e0a01c6cbf75654529a4f6750067e24cedc16ddde85a9294b0c8fb
-  languageName: node
-  linkType: hard
-
-"@sofie-automation/shared-lib@npm:1.50.0-in-testing.5":
-  version: 1.50.0-in-testing.5
-  resolution: "@sofie-automation/shared-lib@npm:1.50.0-in-testing.5"
-  dependencies:
-    "@mos-connection/model": ^3.0.4
-    timeline-state-resolver-types: 9.0.0-release50.6
-    tslib: ^2.4.0
-    type-fest: ^2.19.0
-  checksum: 9b27e4adce0d97de1ca51d23ca89c21319d1c9a1a53ca492bc540716bce56b317337307dc2317a37db5d6b7ff8a5b0cc4e37c393bad3c9a17daf21ecb3792989
+  checksum: da87711839d3a3b0e32fffcdb726544a7efa3e7b08d9eb943d923cf54adcc50fcaccb78992e10a73dc5c0fc17df585a88c86369ad8257f86da05beb10c61b2ab
   languageName: node
   linkType: hard
 
@@ -667,9 +655,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@tv2media/inews-gateway@workspace:."
   dependencies:
-    "@sofie-automation/blueprints-integration": 1.50.0-in-testing.5
-    "@sofie-automation/server-core-integration": 1.50.0-in-testing.5
-    "@sofie-automation/shared-lib": 1.50.0-in-testing.2
+    "@sofie-automation/blueprints-integration": 1.50.1
+    "@sofie-automation/server-core-integration": 1.50.1
+    "@sofie-automation/shared-lib": 1.50.1
     "@tv2media/inews": "git+https://github.com/tv2norge/node-inews.git#785bca48bdc30747805408522e553dc5e4d50a7f"
     "@tv2media/logger": ^1.2.4
     "@types/dotenv": ^6.1.1
@@ -8316,21 +8304,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"timeline-state-resolver-types@npm:9.0.0-release50.5":
-  version: 9.0.0-release50.5
-  resolution: "timeline-state-resolver-types@npm:9.0.0-release50.5"
+"timeline-state-resolver-types@npm:9.0.0":
+  version: 9.0.0
+  resolution: "timeline-state-resolver-types@npm:9.0.0"
   dependencies:
     tslib: ^2.5.1
-  checksum: bb333705c2aaccc70698333e8d13b9b95d58a5767402270b9181fee7da22fc0732d95b950e77f24f1429c5e7c789e9604fd66f0e13ea52d801320f69337ecf1a
-  languageName: node
-  linkType: hard
-
-"timeline-state-resolver-types@npm:9.0.0-release50.6":
-  version: 9.0.0-release50.6
-  resolution: "timeline-state-resolver-types@npm:9.0.0-release50.6"
-  dependencies:
-    tslib: ^2.5.1
-  checksum: f04942a1caa5965a9102a697f93181e82a88194dd0fbe59464d65038e6aa70b8796c3f7b5de505e4b0ee74c47a0158836f72691d6da5bfe728df7146eff57771
+  checksum: be3dd61b56d3c2c12141b7f60aea2e3db6ddd1f128d510db29174bc48e30059710c1bb8470c0bc768c97780f993d5869b9e9f4fdbd476c29dee5cdd6eb5f93ab
   languageName: node
   linkType: hard
 
