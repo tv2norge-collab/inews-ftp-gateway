@@ -48,9 +48,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: dist artifacts
-          path: |
-            dist
-            node_modules
+          path: dist
 
   dockerhub-release-branch:
     runs-on: ubuntu-latest
@@ -66,7 +64,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: dist artifacts
-          path: .
+          path: dist
       - name: Determine if images should be published to ecr
         id: ecrrepo
         run: |
@@ -127,7 +125,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: dist artifacts
-          path: .
+          path: dist
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
