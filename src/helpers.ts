@@ -1,5 +1,6 @@
 import { INewsStory } from '@tv2media/inews'
 import { IngestSegment } from '@sofie-automation/blueprints-integration'
+import { ISegment } from './classes/datastructures/Segment'
 
 export function literal<T>(o: T) {
 	return o
@@ -25,7 +26,7 @@ export function parseModifiedDateFromInewsStoryWithFallbackToNow(story: INewsSto
 	return new Date()
 }
 
-export function parseModifiedDateFromIngestSegmentWithFallbackToNow(segment: IngestSegment): Date {
+export function parseModifiedDateFromIngestSegmentWithFallbackToNow(segment: IngestSegment<ISegment>): Date {
 	if (segment?.payload?.modified) {
 		const modifyDate = new Date(segment?.payload?.modified)
 		if (isValidDate(modifyDate)) {
