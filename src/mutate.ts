@@ -32,7 +32,7 @@ export function mutateSegment(segment: RundownSegment): IngestSegment {
 	}
 }
 
-export function IngestSegmentToRundownSegment(ingestSegment: IngestSegment): RundownSegment | undefined {
+export function IngestSegmentToRundownSegment(ingestSegment: IngestSegment<ISegment>): RundownSegment | undefined {
 	const rundownId = ingestSegment.payload?.rundownId
 	const inewsStory = ingestSegment.payload?.iNewsStory
 	const modified = ingestSegment.payload?.modified
@@ -45,7 +45,7 @@ export function IngestSegmentToRundownSegment(ingestSegment: IngestSegment): Run
 	return new RundownSegment(
 		rundownId,
 		inewsStory,
-		parseModifiedDateFromIngestSegmentWithFallbackToNow(modified),
+		parseModifiedDateFromIngestSegmentWithFallbackToNow(ingestSegment),
 		locator,
 		ingestSegment.externalId,
 		ingestSegment.rank,

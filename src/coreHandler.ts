@@ -3,7 +3,9 @@ import {
 	CoreOptions,
 	DDPConnectorOptions,
 	Observer,
-	PeripheralDeviceForDevice,
+	PeripheralDeviceCommand,
+	PeripheralDevicePubSub,
+	PeripheralDevicePubSubCollectionsNames,
 	StudioId,
 } from '@sofie-automation/server-core-integration'
 import { ILogger as Logger } from '@tv2media/logger'
@@ -14,35 +16,23 @@ import {
 	PeripheralDeviceStatusObject,
 	PeripheralDeviceType,
 } from '@sofie-automation/shared-lib/dist/peripheralDevice/peripheralDeviceAPI'
-import { PeripheralDeviceId } from '@sofie-automation/shared-lib/dist/core/model/Ids'
+import { PeripheralDeviceCommandId, PeripheralDeviceId } from '@sofie-automation/shared-lib/dist/core/model/Ids'
 import { StatusCode } from '@sofie-automation/shared-lib/dist/lib/status'
 import * as _ from 'underscore'
 import { PeripheralDeviceAPIMethods } from '@sofie-automation/shared-lib/dist/peripheralDevice/methodsAPI'
 import { DeviceConfig } from './connector'
 import { InewsFTPHandler } from './inewsHandler'
 import { IngestSegmentToRundownSegment } from './mutate'
-import { RundownSegment } from './classes/datastructures/Segment'
+import { ISegment, RundownSegment } from './classes/datastructures/Segment'
 import { IngestSegment, IngestRundown, IngestPlaylist } from '@sofie-automation/blueprints-integration'
 import { INEWS_DEVICE_CONFIG_MANIFEST } from './configManifest'
 import { ReflectPromise } from './helpers'
 import { ReducedRundown } from './classes/RundownWatcher'
 import { VersionIsCompatible } from './version'
 import { RundownId, SegmentId } from './helpers/id'
-import { protectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
+import { protectString, unprotectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
+import { INewsRundown } from './classes/datastructures/Rundown'
 
-export interface PeripheralDeviceCommand {
-	_id: string
-
-	deviceId: PeripheralDeviceId
-	functionName: string
-	args: Array<any>
-
-	hasReply: boolean
-	reply?: any
-	replyError?: any
-
-	time: number // time
-}
 export interface CoreConfig {
 	host: string
 	port: number
@@ -58,7 +48,7 @@ export class CoreHandler {
 	public core: CoreConnection
 
 	private logger: Logger
-	private _observers: Array<Observer> = []
+	private _observers: Array<Observer<any>> = []
 	private _onConnected?: () => any
 	private _subscriptions: Array<any> = []
 	private _isInitialized: boolean = false
@@ -184,7 +174,7 @@ export class CoreHandler {
 	async setupSubscriptionsAndObservers(): Promise<void> {
 		if (this._observers.length) {
 			this.logger.info('Core: Clearing observers..')
-			this._observers.forEach((obs: Observer) => {
+			this._observers.forEach((obs: Observer<any>) => {
 				obs.stop()
 			})
 			this._observers = []
@@ -193,9 +183,8 @@ export class CoreHandler {
 
 		this.logger.info(`Core: Setting up subscriptions for ${this.core.deviceId}..`)
 		let subs = await Promise.all([
-			this.core.autoSubscribe('peripheralDeviceForDevice', this.core.deviceId),
-			this.core.autoSubscribe('peripheralDeviceCommands', this.core.deviceId),
-			this.core.autoSubscribe('ingestDataCache', {}),
+			this.core.autoSubscribe(PeripheralDevicePubSub.peripheralDeviceForDevice, this.core.deviceId),
+			this.core.autoSubscribe(PeripheralDevicePubSub.peripheralDeviceCommands, this.core.deviceId),
 		])
 		this._subscriptions = this._subscriptions.concat(subs)
 		this.setupObserverForPeripheralDeviceCommands() // Sets up observers
@@ -209,17 +198,18 @@ export class CoreHandler {
 	 */
 	async executeFunction(cmd: PeripheralDeviceCommand): Promise<void> {
 		if (cmd) {
-			if (this._executedFunctions[cmd._id]) return // prevent it from running multiple times
+			if (this._executedFunctions[unprotectString(cmd._id)]) return // prevent it from running multiple times
 			this.logger
 				.data({ functionName: cmd.functionName, args: cmd.args })
 				.debug('Executing a peripheral device command:')
-			this._executedFunctions[cmd._id] = true
+			this._executedFunctions[unprotectString(cmd._id)] = true
 			let success = false
 
 			try {
+				const commandArg = cmd.args?.[0]
 				switch (cmd.functionName) {
 					case 'triggerReloadRundown':
-						const reloadRundownResult = await Promise.resolve(this.triggerReloadRundown(cmd.args[0]))
+						const reloadRundownResult = await Promise.resolve(this.triggerReloadRundown(commandArg))
 						success = true
 						await this.core.callMethodRaw(PeripheralDeviceAPIMethods.functionReply, [
 							cmd._id,
@@ -228,12 +218,12 @@ export class CoreHandler {
 						])
 						break
 					case 'pingResponse':
-						let pingResponseResult = await Promise.resolve(this.pingResponse(cmd.args[0]))
+						let pingResponseResult = await Promise.resolve(this.pingResponse(commandArg))
 						success = true
 						await this.core.callMethodRaw(PeripheralDeviceAPIMethods.functionReply, [cmd._id, null, pingResponseResult])
 						break
 					case 'retireExecuteFunction':
-						let retireExecuteFunctionResult = await Promise.resolve(this.retireExecuteFunction(cmd.args[0]))
+						let retireExecuteFunctionResult = await Promise.resolve(this.retireExecuteFunction(commandArg))
 						success = true
 						await this.core.callMethodRaw(PeripheralDeviceAPIMethods.functionReply, [
 							cmd._id,
@@ -242,7 +232,7 @@ export class CoreHandler {
 						])
 						break
 					case 'killProcess':
-						let killProcessFunctionResult = await Promise.resolve(this.killProcess(cmd.args[0]))
+						let killProcessFunctionResult = await Promise.resolve(this.killProcess(commandArg))
 						success = true
 						await this.core.callMethodRaw(PeripheralDeviceAPIMethods.functionReply, [
 							cmd._id,
@@ -269,8 +259,8 @@ export class CoreHandler {
 		}
 	}
 
-	retireExecuteFunction(cmdId: string) {
-		delete this._executedFunctions[cmdId]
+	retireExecuteFunction(cmdId: PeripheralDeviceCommandId) {
+		delete this._executedFunctions[unprotectString(cmdId)]
 	}
 
 	/**
@@ -279,7 +269,7 @@ export class CoreHandler {
 	// Made async as it does async work ...
 	setupObserverForPeripheralDeviceCommands() {
 		this.logger.info(`Core: Setting up observers for peripheral device commands on ${this.core.deviceId}..`)
-		let observer = this.core.observe('peripheralDeviceCommands')
+		let observer = this.core.observe(PeripheralDevicePubSubCollectionsNames.peripheralDeviceCommands)
 		this.killProcess(0) // just make sure it exists
 		this._observers.push(observer)
 
@@ -288,22 +278,22 @@ export class CoreHandler {
 		 * @param {string} id Command id to execute.
 		 */
 		// Note: Oberver is not expecting a promise.
-		let addedChangedCommand = (id: string): void => {
-			let cmds = this.core.getCollection<PeripheralDeviceCommand>('peripheralDeviceCommands')
+		let addedChangedCommand = (id: PeripheralDeviceCommandId): void => {
+			let cmds = this.core.getCollection(PeripheralDevicePubSubCollectionsNames.peripheralDeviceCommands)
 			if (!cmds) throw Error('"peripheralDeviceCommands" collection not found!')
 			let cmd = cmds.findOne(id)
 			if (!cmd) throw Error('PeripheralCommand "' + id + '" not found!')
 			if (cmd.deviceId === this.core.deviceId) {
-				this.executeFunction(cmd).catch((e) => this.logger.data(e).error(`Error executing command recieved from core:`))
+				this.executeFunction(cmd).catch((e) => this.logger.data(e).error(`Error executing command received from core:`))
 			}
 		}
-		observer.added = (id: string) => {
+		observer.added = (id: PeripheralDeviceCommandId) => {
 			addedChangedCommand(id)
 		}
-		observer.changed = (id: string) => {
+		observer.changed = (id: PeripheralDeviceCommandId) => {
 			addedChangedCommand(id)
 		}
-		observer.removed = (id: string) => {
+		observer.removed = (id: PeripheralDeviceCommandId) => {
 			this.retireExecuteFunction(id)
 		}
 	}
@@ -313,7 +303,7 @@ export class CoreHandler {
 	 */
 	async executePeripheralDeviceCommands(): Promise<void> {
 		this.logger.info(`Core: Execute peripheral device commands on ${this.core.deviceId}..`)
-		let cmds = this.core.getCollection('peripheralDeviceCommands')
+		let cmds = this.core.getCollection(PeripheralDevicePubSubCollectionsNames.peripheralDeviceCommands)
 		if (!cmds) throw Error('"peripheralDeviceCommands" collection not found!')
 		await Promise.all(
 			cmds.find({}).map((cmd0) => {
@@ -332,13 +322,13 @@ export class CoreHandler {
 	setupObserverForPeripheralDevices() {
 		this.logger.info(`Core: Setting up observers for peripheral devices on ${this.core.deviceId}..`)
 		// Setup observer.
-		let observer = this.core.observe('peripheralDeviceForDevice')
+		let observer = this.core.observe(PeripheralDevicePubSubCollectionsNames.peripheralDeviceForDevice)
 		this.killProcess(0)
 		this._observers.push(observer)
 
 		let addedChanged = (id: PeripheralDeviceId) => {
 			// Check that collection exists.
-			let devices = this.core.getCollection<PeripheralDeviceForDevice>('peripheralDeviceForDevice')
+			let devices = this.core.getCollection(PeripheralDevicePubSubCollectionsNames.peripheralDeviceForDevice)
 			if (!devices) throw Error('"peripheralDeviceForDevice" collection not found!')
 
 			// Find studio ID.
@@ -352,11 +342,11 @@ export class CoreHandler {
 			}
 		}
 
-		observer.added = (id: string) => {
-			addedChanged(protectString<PeripheralDeviceId>(id))
+		observer.added = (id: PeripheralDeviceId) => {
+			addedChanged(id)
 		}
-		observer.changed = (id: string) => {
-			addedChanged(protectString<PeripheralDeviceId>(id))
+		observer.changed = (id: PeripheralDeviceId) => {
+			addedChanged(id)
 		}
 
 		addedChanged(this.core.deviceId)
@@ -470,11 +460,11 @@ export class CoreHandler {
 	/**
 	 * Returns Sofie rundown orders state
 	 */
-	public async GetRundownCache(rundownExternalIds: string[]): Promise<Array<IngestRundown>> {
+	public async GetRundownCache(rundownExternalIds: string[]): Promise<Array<IngestRundown<INewsRundown>>> {
 		this.logger.debug(`Making a call to core (GetRundownCache)`)
-		const res: IngestRundown[] = []
+		const res: IngestRundown<INewsRundown>[] = []
 
-		const ps: Array<Promise<IngestRundown>> = []
+		const ps: Array<Promise<IngestRundown<INewsRundown>>> = []
 		for (let id of rundownExternalIds) {
 			this.logger.debug(`Getting cache for rundown ${id}`)
 			ps.push(this.core.callMethodRaw(PeripheralDeviceAPIMethods.dataRundownGet, [id]))
@@ -505,8 +495,8 @@ export class CoreHandler {
 		this.logger.debug(`Making a call to core (GetSegmentsCacheById)`)
 		this.logger.debug(`Looking for external IDs ${JSON.stringify(segmentExternalIds)}`)
 
-		const cachedSegments: IngestSegment[] = []
-		const ps: Array<Promise<IngestSegment>> = []
+		const cachedSegments: IngestSegment<ISegment>[] = []
+		const ps: Array<Promise<IngestSegment<ISegment>>> = []
 		for (let id of segmentExternalIds) {
 			ps.push(this.core.callMethodRaw(PeripheralDeviceAPIMethods.dataSegmentGet, [rundownExternalId, id]))
 		}

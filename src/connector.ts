@@ -6,7 +6,7 @@ import {
 	Observer,
 	PeripheralDeviceId,
 	PeripheralDeviceForDevice,
-	protectString,
+	PeripheralDevicePubSubCollectionsNames,
 } from '@sofie-automation/server-core-integration'
 import { ensureLogLevel, setLogLevel } from './logger'
 import { ILogger as Logger } from '@tv2media/logger'
@@ -28,7 +28,7 @@ export interface DeviceConfig {
 }
 export class Connector {
 	private iNewsFTPHandler: InewsFTPHandler
-	private _observers: Array<Observer> = []
+	private _observers: Array<Observer<PeripheralDeviceForDevice>> = []
 	private coreHandler: CoreHandler
 	private _config: Config
 	private _logger: Logger
@@ -92,12 +92,12 @@ export class Connector {
 
 	setupObserver() {
 		// Setup observer.
-		let observer = this.coreHandler.core.observe('peripheralDeviceForDevice')
+		let observer = this.coreHandler.core.observe(PeripheralDevicePubSubCollectionsNames.peripheralDeviceForDevice)
 		this._observers.push(observer)
 
 		let addedChanged = (id: PeripheralDeviceId) => {
 			// Check that collection exists.
-			let devices = this.coreHandler.core.getCollection<PeripheralDeviceForDevice>('peripheralDeviceForDevice')
+			let devices = this.coreHandler.core.getCollection(PeripheralDevicePubSubCollectionsNames.peripheralDeviceForDevice)
 			if (!devices) throw Error('"peripheralDeviceForDevice" collection not found!')
 
 			// Find studio ID.
@@ -129,11 +129,11 @@ export class Connector {
 			}
 		}
 
-		observer.added = (id: string) => {
-			addedChanged(protectString<PeripheralDeviceId>(id))
+		observer.added = (id: PeripheralDeviceId) => {
+			addedChanged(id)
 		}
-		observer.changed = (id: string) => {
-			addedChanged(protectString<PeripheralDeviceId>(id))
+		observer.changed = (id: PeripheralDeviceId) => {
+			addedChanged(id)
 		}
 
 		addedChanged(this.coreHandler.core.deviceId)
