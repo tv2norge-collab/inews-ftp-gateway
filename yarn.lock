@@ -3076,13 +3076,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ftp@npm:0.3.x":
+"ftp@github:ianshade/node-ftp#master":
   version: 0.3.10
-  resolution: "ftp@npm:0.3.10"
+  resolution: "ftp@https://github.com/ianshade/node-ftp.git#commit=4c8baff4afe63fc08fafff3f8be31cd43fb03c1c"
   dependencies:
     readable-stream: 1.1.x
     xregexp: 2.0.0
-  checksum: ddd313c1d44eb7429f3a7d77a0155dc8fe86a4c64dca58f395632333ce4b4e74c61413c6e0ef66ea3f3d32d905952fbb6d028c7117d522f793eb1fa282e17357
+  checksum: 778a314dfde3896d6c9edba472a58fc14c2efe66adc77074d7d30cd0f6e325d27f70141ca36e75d0c7d604003a3efae7584307b46638110948bb3e8e8d780fad
   languageName: node
   linkType: hard
 

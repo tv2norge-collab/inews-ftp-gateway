@@ -59,6 +59,7 @@ export class InewsFTPHandler {
 		if (this.iNewsWatcher) {
 			return this.iNewsWatcher.dispose()
 		}
+		this.iNewsConnection?.disconnect()
 	}
 
 	/**
@@ -84,6 +85,7 @@ export class InewsFTPHandler {
 			timeout: 60000, // 60s, as originally in the node-inews library
 			operationTimeout: 60000, // 60s, this is new in node-inews after the TS rewrite; setting it too low may result in never getting any data if the server/connection is slow
 		})
+		this._logger.debug('Created an iNews Client')
 
 		this.iNewsConnection.on('status', async (status) => {
 			if (status.name === 'disconnected') {

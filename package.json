@@ -84,7 +84,8 @@
   "resolutions": {
     "minimist": "^1.2.3",
     "set-value": "^4.0.1",
-    "ansi-regex": "^5.0.1"
+    "ansi-regex": "^5.0.1",
+    "ftp": "github:ianshade/node-ftp#master"
   },
   "devDependencies": {
     "@types/dotenv": "^6.1.1",
