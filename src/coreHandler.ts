@@ -21,7 +21,7 @@ import { StatusCode } from '@sofie-automation/shared-lib/dist/lib/status'
 import * as _ from 'underscore'
 import { PeripheralDeviceAPIMethods } from '@sofie-automation/shared-lib/dist/peripheralDevice/methodsAPI'
 import { DeviceConfig } from './connector'
-import { InewsFTPHandler } from './inewsHandler'
+import { InewsHttpHandler } from './inewsHandler'
 import { IngestSegmentToRundownSegment } from './mutate'
 import { ISegment, RundownSegment } from './classes/datastructures/Segment'
 import { IngestSegment, IngestRundown, IngestPlaylist } from '@sofie-automation/blueprints-integration'
@@ -56,7 +56,7 @@ export class CoreHandler {
 	private _coreConfig?: CoreConfig
 	private _process?: Process
 	private _studioId?: StudioId
-	public iNewsHandler?: InewsFTPHandler
+	public iNewsHandler?: InewsHttpHandler
 
 	constructor(logger: Logger, deviceOptions: DeviceConfig) {
 		this.logger = logger.tag(this.constructor.name)
