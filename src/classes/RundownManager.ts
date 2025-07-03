@@ -12,14 +12,14 @@ function isStory(f: INewsFTPStoryOrQueue): f is INewsFTPStory {
 }
 
 export class RundownManager {
-	private _listStories!: (queueName: string) => Promise<Array<INewsFTPStoryOrQueue>>
-	private _getStory!: (queueName: string, story: string) => Promise<INewsStory>
+	constructor(private readonly _logger: Logger, private readonly httpClient: HttpInewsClient) {}
 
-	constructor(private _logger?: Logger, private httpClient?: HttpInewsClient) {
-		if (this.httpClient) {
-			this._listStories = this.httpClient.listStories.bind(this.httpClient)
-			this._getStory = this.httpClient.getStory.bind(this.httpClient)
-		}
+	private async _listStories(queueName: string): Promise<Array<INewsFTPStoryOrQueue>> {
+		return this.httpClient.listStories(queueName)
+	}
+
+	private async _getStory(queueName: string, story: string): Promise<INewsStory> {
+		return this.httpClient.getStory(queueName, story)
 	}
 
 	/**
@@ -57,7 +57,7 @@ export class RundownManager {
 				}
 			})
 		} catch (error) {
-			this._logger?.data(error).error('Error downloading iNews rundown:')
+			this._logger.data(error).error('Error downloading iNews rundown:')
 		}
 		return rundown
 	}
@@ -104,21 +104,21 @@ export class RundownManager {
 	async downloadINewsStory(queueName: string, storyFile: INewsFTPStoryOrQueue): Promise<INewsStoryGW | undefined> {
 		let story: INewsStoryGW
 		try {
-			this._logger?.debug(`[downloadINewsStory] queueName: ${queueName}, storyFile: ${JSON.stringify(storyFile)}`)
+			this._logger.debug(`[downloadINewsStory] queueName: ${queueName}, storyFile: ${JSON.stringify(storyFile)}`)
 			const storyData = await this._getStory(queueName, storyFile.file)
-			this._logger?.debug(`[downloadINewsStory] _getStory result: ${JSON.stringify(storyData)}`)
+			this._logger.debug(`[downloadINewsStory] _getStory result: ${JSON.stringify(storyData)}`)
 			story = {
 				...storyData,
 				identifier: (storyFile as INewsFTPStory).identifier,
 				locator: (storyFile as INewsFTPStory).locator,
 			}
-			this._logger?.debug(`[downloadINewsStory] Final story object: ${JSON.stringify(story)}`)
+			this._logger.debug(`[downloadINewsStory] Final story object: ${JSON.stringify(story)}`)
 		} catch (err) {
-			this._logger?.error(`[downloadINewsStory] Error: ${err} ${JSON.stringify(err)}`)
+			this._logger.error(`[downloadINewsStory] Error: ${err} ${JSON.stringify(err)}`)
 			return undefined
 		}
 
-		this._logger?.debug('Downloaded : ' + queueName + ' : ' + (storyFile as INewsFTPStory).identifier)
+		this._logger.debug('Downloaded : ' + queueName + ' : ' + (storyFile as INewsFTPStory).identifier)
 		/* Add fileId and update modifyDate to ftp reference in storyFile */
 		const newModifyDate = `${storyFile.modified ? new Date(storyFile.modified).getTime() / 1000 : 0}`
 		if (story.fields.modifyDate) {
@@ -127,7 +127,7 @@ export class RundownManager {
 			story.fields.modifyDate = { value: newModifyDate, attributes: {} }
 		}
 
-		this._logger?.debug(`Queue: ${queueName} Story: ${isStory(storyFile) ? storyFile.storyName : storyFile.file}`)
+		this._logger.debug(`Queue: ${queueName} Story: ${isStory(storyFile) ? storyFile.storyName : storyFile.file}`)
 
 		this.generateCuesFromLayoutField(story)
 		return story

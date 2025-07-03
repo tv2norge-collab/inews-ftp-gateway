@@ -12,6 +12,8 @@ import {
 	PeripheralDevicePubSubCollectionsNames,
 } from '@sofie-automation/server-core-integration'
 import { HttpInewsClient } from './proxy/HttpInewsClient'
+import { HttpInewsHealth } from './proxy/types/HttpInews'
+import { Config } from './connector'
 
 export interface INewsDeviceSettings {
 	hosts?: Array<string>
@@ -34,10 +36,12 @@ export class InewsHttpHandler {
 	private _settings?: INewsDeviceSettings
 	private _coreHandler: CoreHandler
 	private _isConnected: boolean = false
+	private _config: Config
 
-	constructor(logger: Logger, coreHandler: CoreHandler) {
+	constructor(logger: Logger, coreHandler: CoreHandler, config: Config) {
 		this._logger = logger.tag(this.constructor.name)
 		this._coreHandler = coreHandler
+		this._config = config
 	}
 
 	get isConnected(): boolean {
@@ -81,9 +85,12 @@ export class InewsHttpHandler {
 		if (!this._settings) return
 		if (!this._settings.hosts) throw new Error('No hosts available')
 		if (!this._settings.queues) throw new Error('No queues set')
-
 		// Instantiate the HTTP client for the proxy
-		this._httpClient = new HttpInewsClient(this._settings)
+		this._httpClient = new HttpInewsClient({
+			settings: this._settings,
+			logger: this._logger,
+			inewsHttpProxy: this._config.inewsHttpProxy,
+		})
 
 		// Connection status will be checked as part of rundown polling
 
@@ -209,10 +216,10 @@ export class InewsHttpHandler {
 
 	public async checkHealthAndUpdateStatus(): Promise<boolean> {
 		try {
-			const health = await this._httpClient?.getHealth()
-			console.log('health', health)
+			const health: HttpInewsHealth | undefined = await this._httpClient?.getHealth()
+			this._logger.debug('health', health)
 			const wasConnected = this._isConnected
-			this._isConnected = health && health.status === 'ok' && health.inewsConnected === true
+			this._isConnected = !!(health && health.status === 'ok' && health.inewsConnected === true)
 			if (!wasConnected && this._isConnected) {
 				this._logger.info('Connected to iNews HTTP API')
 				await this._coreHandler.setStatus(StatusCode.GOOD, ['Connected to iNews HTTP API'])

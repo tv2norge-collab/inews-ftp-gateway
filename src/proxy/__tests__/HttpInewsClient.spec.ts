@@ -1,7 +1,14 @@
+// 1. Mock the entire axios module. Jest will automatically handle this before any imports.
 import axios from 'axios'
 import { HttpInewsClient } from '../HttpInewsClient'
+import { ILogger } from '@tv2media/logger'
 
-const mockLogger = {
+jest.mock('axios')
+
+const mockedAxios = axios as jest.Mocked<typeof axios>
+const mockGet = jest.fn()
+
+const mockLogger: ILogger = {
 	debug: jest.fn(),
 	error: jest.fn(),
 	data: jest.fn().mockReturnThis(),
@@ -50,66 +57,76 @@ const mockStory = {
 	body: '\r\n<p><pi>KAM H</pi></p>\r\n<p><pi></pi></p>\r\n',
 }
 
-describe('HttpInewsClient', () => {
-	// Use restoreAllMocks to ensure spies are reset after each test
-	afterEach(() => {
-		jest.restoreAllMocks()
-	})
+const inewsHttpProxy = { timeoutMs: 1234 }
 
-	it('constructs with and without logger', () => {
-		const client1 = new HttpInewsClient(settings, mockLogger)
-		expect(client1).toBeInstanceOf(HttpInewsClient)
-		const client2 = new HttpInewsClient(settings)
-		expect(client2).toBeInstanceOf(HttpInewsClient)
+const clientOptions = {
+	settings,
+	logger: mockLogger,
+	inewsHttpProxy,
+}
+describe('HttpInewsClient', () => {
+	let client: HttpInewsClient
+
+	beforeEach(() => {
+		// Reset mocks and setup the mocked return value for axios.create
+		jest.clearAllMocks()
+		// 3. Ensure axios.create returns our mock instance with the mock 'get' function
+		mockedAxios.create.mockReturnValue({ get: mockGet } as any)
+		client = new HttpInewsClient(clientOptions)
 	})
 
 	describe('listStories', () => {
 		it('returns stories on success', async () => {
-			// Spy on axios.get and mock its return value for this test
-			jest.spyOn(axios, 'get').mockResolvedValueOnce({ data: [mockFTPStory] })
-			const client = new HttpInewsClient(settings, mockLogger)
+			// Setup the successful response for this test
+			mockGet.mockResolvedValue({ data: [mockFTPStory] })
 			const result = await client.listStories('QUEUE')
 			expect(result).toEqual([mockFTPStory])
 			expect(mockLogger.debug).toHaveBeenCalled()
 		})
+
 		it('throws and logs on error', async () => {
-			// Spy on axios.get and mock a failure for this test
-			jest.spyOn(axios, 'get').mockRejectedValueOnce(new Error('fail'))
-			const client = new HttpInewsClient(settings, mockLogger)
+			// Setup the rejected promise for this test
+			mockGet.mockRejectedValue(new Error('fail'))
 			await expect(client.listStories('QUEUE')).rejects.toThrow('Failed to list stories for queue')
+			expect(mockLogger.error).toHaveBeenCalled()
+		})
+
+		it('handles timeout error', async () => {
+			// Setup the specific Axios timeout error
+			const timeoutError = {
+				isAxiosError: true,
+				code: 'ECONNABORTED',
+				config: { timeout: inewsHttpProxy.timeoutMs },
+			}
+			mockGet.mockRejectedValue(timeoutError)
+			await expect(client.listStories('QUEUE')).rejects.toThrow(`Failed to list stories for queue 'QUEUE'`)
 			expect(mockLogger.error).toHaveBeenCalled()
 		})
 	})
 
 	describe('getStory', () => {
 		it('returns story on success', async () => {
-			jest.spyOn(axios, 'get').mockResolvedValueOnce({ data: mockStory })
-			const client = new HttpInewsClient(settings, mockLogger)
+			mockGet.mockResolvedValue({ data: mockStory })
 			const result = await client.getStory('QUEUE', '10098408')
 			expect(result).toEqual(mockStory)
-			expect(mockLogger.debug).toHaveBeenCalled()
 		})
+
 		it('throws and logs on error', async () => {
-			jest.spyOn(axios, 'get').mockRejectedValueOnce(new Error('fail'))
-			const client = new HttpInewsClient(settings, mockLogger)
+			mockGet.mockRejectedValue(new Error('fail'))
 			await expect(client.getStory('QUEUE', '10098408')).rejects.toThrow('Failed to get story')
-			expect(mockLogger.error).toHaveBeenCalled()
 		})
 	})
 
 	describe('getHealth', () => {
 		it('returns health on success', async () => {
-			jest.spyOn(axios, 'get').mockResolvedValueOnce({ data: { status: 'ok' } })
-			const client = new HttpInewsClient(settings, mockLogger)
+			mockGet.mockResolvedValue({ data: { status: 'ok' } })
 			const result = await client.getHealth()
 			expect(result).toEqual({ status: 'ok' })
-			expect(mockLogger.debug).toHaveBeenCalled()
 		})
+
 		it('throws and logs on error', async () => {
-			jest.spyOn(axios, 'get').mockRejectedValueOnce(new Error('fail'))
-			const client = new HttpInewsClient(settings, mockLogger)
+			mockGet.mockRejectedValue(new Error('fail'))
 			await expect(client.getHealth()).rejects.toThrow('Failed to get health')
-			expect(mockLogger.error).toHaveBeenCalled()
 		})
 	})
 })

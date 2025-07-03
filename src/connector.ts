@@ -10,11 +10,13 @@ import {
 } from '@sofie-automation/server-core-integration'
 import { ensureLogLevel, setLogLevel } from './logger'
 import { ILogger as Logger } from '@tv2media/logger'
+import { InewsHttpProxyConfig } from './proxy/types/HttpInews'
 
 export interface Config {
 	process: ProcessConfig
 	device: DeviceConfig
 	core: CoreConfig
+	inewsHttpProxy: InewsHttpProxyConfig
 }
 export interface ProcessConfig {
 	/** Will cause the Node application to blindly accept all certificates. Not recommenced unless in local, controlled networks. */
@@ -42,7 +44,7 @@ export class Connector {
 		this._debug = debug
 		this._process = new Process(this._logger)
 		this.coreHandler = new CoreHandler(this._logger, this._config.device)
-		this.iNewsHTTPHandler = new InewsHttpHandler(this._logger, this.coreHandler)
+		this.iNewsHTTPHandler = new InewsHttpHandler(this._logger, this.coreHandler, this._config)
 		this.coreHandler.iNewsHandler = this.iNewsHTTPHandler
 	}
 
@@ -112,7 +114,7 @@ export class Connector {
 					this.iNewsHTTPHandler
 						.dispose()
 						.then(() => {
-							this.iNewsHTTPHandler = new InewsHttpHandler(this._logger, this.coreHandler)
+							this.iNewsHTTPHandler = new InewsHttpHandler(this._logger, this.coreHandler, this._config)
 							return this.initInewsHTTPHandler()
 						})
 						.catch((error) => {
