@@ -1,4 +1,4 @@
-import { InewsFTPHandler, INewsDeviceSettings } from './inewsHandler'
+import { InewsHttpHandler, INewsDeviceSettings } from './inewsHandler'
 import { CoreHandler, CoreConfig } from './coreHandler'
 import * as _ from 'underscore'
 import { Process } from './process'
@@ -10,11 +10,13 @@ import {
 } from '@sofie-automation/server-core-integration'
 import { ensureLogLevel, setLogLevel } from './logger'
 import { ILogger as Logger } from '@tv2media/logger'
+import { InewsHttpProxyConfig } from './proxy/types/HttpInews'
 
 export interface Config {
 	process: ProcessConfig
 	device: DeviceConfig
 	core: CoreConfig
+	inewsHttpProxy: InewsHttpProxyConfig
 }
 export interface ProcessConfig {
 	/** Will cause the Node application to blindly accept all certificates. Not recommenced unless in local, controlled networks. */
@@ -27,7 +29,7 @@ export interface DeviceConfig {
 	deviceToken: string
 }
 export class Connector {
-	private iNewsFTPHandler: InewsFTPHandler
+	private iNewsHTTPHandler: InewsHttpHandler
 	private _observers: Array<Observer<PeripheralDeviceForDevice>> = []
 	private coreHandler: CoreHandler
 	private _config: Config
@@ -42,8 +44,8 @@ export class Connector {
 		this._debug = debug
 		this._process = new Process(this._logger)
 		this.coreHandler = new CoreHandler(this._logger, this._config.device)
-		this.iNewsFTPHandler = new InewsFTPHandler(this._logger, this.coreHandler)
-		this.coreHandler.iNewsHandler = this.iNewsFTPHandler
+		this.iNewsHTTPHandler = new InewsHttpHandler(this._logger, this.coreHandler, this._config)
+		this.coreHandler.iNewsHandler = this.iNewsHTTPHandler
 	}
 
 	async init(): Promise<void> {
@@ -76,14 +78,14 @@ export class Connector {
 		await this.coreHandler.init(this._config.device, this._config.core, this._process)
 	}
 
-	async initInewsFTPHandler(): Promise<void> {
-		await this.iNewsFTPHandler.init(this.coreHandler)
-		this.coreHandler.iNewsHandler = this.iNewsFTPHandler
+	async initInewsHTTPHandler(): Promise<void> {
+		await this.iNewsHTTPHandler.init(this.coreHandler)
+		this.coreHandler.iNewsHandler = this.iNewsHTTPHandler
 	}
 
 	async dispose(): Promise<void> {
-		if (this.iNewsFTPHandler) {
-			await this.iNewsFTPHandler.dispose()
+		if (this.iNewsHTTPHandler) {
+			await this.iNewsHTTPHandler.dispose()
 		}
 		if (this.coreHandler) {
 			await this.coreHandler.dispose()
@@ -97,7 +99,9 @@ export class Connector {
 
 		let addedChanged = (id: PeripheralDeviceId) => {
 			// Check that collection exists.
-			let devices = this.coreHandler.core.getCollection(PeripheralDevicePubSubCollectionsNames.peripheralDeviceForDevice)
+			let devices = this.coreHandler.core.getCollection(
+				PeripheralDevicePubSubCollectionsNames.peripheralDeviceForDevice
+			)
 			if (!devices) throw Error('"peripheralDeviceForDevice" collection not found!')
 
 			// Find studio ID.
@@ -107,11 +111,11 @@ export class Connector {
 				let settings = (dev.deviceSettings || {}) as INewsDeviceSettings
 				settings.queues = settings.queues?.filter((q) => q !== '')
 				if (!this._settings || !_.isEqual(_.omit(settings, 'debug'), _.omit(this._settings, 'debug'))) {
-					this.iNewsFTPHandler
+					this.iNewsHTTPHandler
 						.dispose()
 						.then(() => {
-							this.iNewsFTPHandler = new InewsFTPHandler(this._logger, this.coreHandler)
-							return this.initInewsFTPHandler()
+							this.iNewsHTTPHandler = new InewsHttpHandler(this._logger, this.coreHandler, this._config)
+							return this.initInewsHTTPHandler()
 						})
 						.catch((error) => {
 							this._logger.data(error).error('Failed to update iNewsFTP settings:')

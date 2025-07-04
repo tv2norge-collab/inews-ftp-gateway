@@ -4,8 +4,8 @@ import { ensureLogLevel, logger, setLogLevel, setupLogger } from './logger'
 
 const argv = yargs(process.argv.slice(2))
 	.options({
-		host: { type: 'string', default: '127.0.0.1', describe: 'Host of core' },
-		port: { type: 'number', default: 3000, describe: 'Port of core' },
+		host: { type: 'string', default: '10.55.159.196', describe: 'Host of core' },
+		port: { type: 'number', default: 3001, describe: 'Port of core' },
 		log: { type: 'string', required: false, describe: 'File path to output logs to' },
 		id: { type: 'string', required: false, describe: 'Set device Id' },
 		token: { type: 'string', required: false, describe: 'Token for core communication' },
@@ -38,6 +38,11 @@ if (!certs.length) {
 }
 let debug: boolean = argv.debug
 
+// HTTP timeout (ms)
+const inewsHttpProxyTimeoutMs: number = process.env.INEWS_HTTP_PROXY_TIMEOUT_MS
+	? parseInt(process.env.INEWS_HTTP_PROXY_TIMEOUT_MS, 10)
+	: 10000
+
 setupLogger()
 const logLevel = debug ? 'debug' : ensureLogLevel(process.env.LOG_LEVEL) ?? 'warn'
 setLogLevel(logLevel)
@@ -61,6 +66,7 @@ logger.info(`token: "${deviceToken}"`)
 logger.info(`certificates: [${certs.join(',')}]`)
 logger.info(`disableWatchdog: ${disableWatchdog}`)
 logger.info(`unsafeSSL: ${unsafeSSL}`)
+logger.info(`inewsHttpProxyTimeoutMs: ${inewsHttpProxyTimeoutMs}`)
 
 logger.info('-----------------------------------')
 
@@ -78,6 +84,9 @@ let config: Config = {
 		host: host,
 		port: port,
 		watchdog: !disableWatchdog,
+	},
+	inewsHttpProxy: {
+		timeoutMs: inewsHttpProxyTimeoutMs,
 	},
 }
 

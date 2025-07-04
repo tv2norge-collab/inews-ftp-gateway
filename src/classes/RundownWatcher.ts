@@ -3,8 +3,7 @@ import * as dotenv from 'dotenv'
 import { INewsRundown } from './datastructures/Rundown'
 import { RundownManager } from './RundownManager'
 import { RundownSegment, ISegment } from './datastructures/Segment'
-import { InewsFTPHandler } from '../inewsHandler'
-import { INewsClient } from '@tv2media/inews'
+import { InewsHttpHandler } from '../inewsHandler'
 import { StatusCode } from '@sofie-automation/shared-lib/dist/lib/status'
 import { CoreHandler } from '../coreHandler'
 import { SegmentRankings, SegmentRankingsInner } from './ParsedINewsToSegments'
@@ -17,6 +16,7 @@ import { AssignRanksToSegments } from '../helpers/AssignRanksToSegments'
 import { CoreCallType, GenerateCoreCalls } from '../helpers/GenerateCoreCalls'
 import { assertUnreachable } from '../helpers'
 import { ILogger as Logger } from '@tv2media/logger'
+import { HttpInewsClient } from '../proxy/HttpInewsClient'
 
 dotenv.config()
 
@@ -196,11 +196,11 @@ export class RundownWatcher extends EventEmitter {
 	 */
 	constructor(
 		private logger: Logger,
-		private iNewsConnection: INewsClient,
+		private iNewsConnection: HttpInewsClient,
 		private coreHandler: CoreHandler,
 		private iNewsQueue: Array<string>,
 		private gatewayVersion: string,
-		private handler: InewsFTPHandler,
+		private handler: InewsHttpHandler,
 		delayStart?: boolean
 	) {
 		super()
@@ -311,6 +311,9 @@ export class RundownWatcher extends EventEmitter {
 	}
 
 	async checkINewsRundowns(): Promise<void> {
+		const connected = await this.handler.checkHealthAndUpdateStatus()
+		if (!connected) return
+
 		for (let queue of this.iNewsQueue) {
 			await this.checkINewsRundownById(queue)
 		}

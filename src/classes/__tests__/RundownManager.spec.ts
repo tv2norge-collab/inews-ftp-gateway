@@ -3,11 +3,23 @@ import { INewsStoryGW } from '../datastructures/Segment'
 
 const LAYOUT: string = 'n'
 
+// Mock logger and httpClient
+const mockLogger = {
+	debug: jest.fn(),
+	data: jest.fn(() => ({ error: jest.fn() })),
+	error: jest.fn(),
+} as any
+
+const mockHttpClient = {
+	listStories: jest.fn(),
+	getStory: jest.fn(),
+} as any
+
 let testee: RundownManager
 
 describe('RundownManager', () => {
 	beforeEach(() => {
-		testee = new RundownManager()
+		testee = new RundownManager(mockLogger, mockHttpClient)
 	})
 
 	describe('generateCuesFromLayoutField', () => {
