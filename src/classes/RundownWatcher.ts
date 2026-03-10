@@ -268,18 +268,6 @@ export class RundownWatcher extends EventEmitter {
 		this.stopWatcher()
 	}
 
-	/**
-	 * Force the next poll to re-diff and re-send all Core calls for the rundown's playlist,
-	 * without clearing iNews data cache (no extra FTP fetches).
-	 * Call this when a Core API call is rejected so the gateway doesn't silently advance
-	 * past Core's actual state.
-	 */
-	public forceResendRundown(rundownExternalId: string): void {
-		const playlistExternalId = rundownExternalId.replace(/_\d+$/, '')
-		this.cachedAssignedRundowns.delete(playlistExternalId)
-		this.cachedPlaylistAssignments.delete(playlistExternalId)
-	}
-
 	public async ResyncRundown(rundownExternalId: string) {
 		const release = await this.processingRundown.acquire()
 		const playlistExternalId = rundownExternalId.replace(/_\d+$/, '')
