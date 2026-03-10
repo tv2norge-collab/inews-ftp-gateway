@@ -169,43 +169,66 @@ export class InewsHttpHandler {
 			.on('rundown_delete', (rundownExternalId) => {
 				this._coreHandler.core
 					.callMethodRaw(PeripheralDeviceAPIMethods.dataRundownDelete, [rundownExternalId])
-					.catch(this._logger.error)
+					.catch((e) => {
+						this._logger.error(e)
+						this.iNewsWatcher?.forceResendRundown(rundownExternalId)
+					})
 			})
-			.on('rundown_create', (_rundownExternalId, rundown) => {
+			.on('rundown_create', (rundownExternalId, rundown) => {
 				this._coreHandler.core
 					.callMethodRaw(PeripheralDeviceAPIMethods.dataRundownCreate, [rundown])
-					.catch(this._logger.error)
+					.catch((e) => {
+						this._logger.error(e)
+						this.iNewsWatcher?.forceResendRundown(rundownExternalId)
+					})
 			})
-			.on('rundown_update', (_rundownExternalId, rundown) => {
+			.on('rundown_update', (rundownExternalId, rundown) => {
 				this._coreHandler.core
 					.callMethodRaw(PeripheralDeviceAPIMethods.dataRundownUpdate, [rundown])
-					.catch(this._logger.error)
+					.catch((e) => {
+						this._logger.error(e)
+						this.iNewsWatcher?.forceResendRundown(rundownExternalId)
+					})
 			})
-			.on('rundown_metadata_update', (_rundownExternalId, rundown) => {
+			.on('rundown_metadata_update', (rundownExternalId, rundown) => {
 				this._coreHandler.core
 					.callMethodRaw(PeripheralDeviceAPIMethods.dataRundownMetaDataUpdate, [rundown])
-					.catch(this._logger.error)
+					.catch((e) => {
+						this._logger.error(e)
+						this.iNewsWatcher?.forceResendRundown(rundownExternalId)
+					})
 			})
 			.on('segment_delete', (rundownExternalId, segmentId) => {
 				this._coreHandler.core
 					.callMethodRaw(PeripheralDeviceAPIMethods.dataSegmentDelete, [rundownExternalId, segmentId])
-					.catch(this._logger.error)
+					.catch((e) => {
+						this._logger.error(e)
+						this.iNewsWatcher?.forceResendRundown(rundownExternalId)
+					})
 			})
 			.on('segment_create', (rundownExternalId, _segmentId, newSegment) => {
 				this._coreHandler.core
 					.callMethodRaw(PeripheralDeviceAPIMethods.dataSegmentCreate, [rundownExternalId, newSegment])
-					.catch(this._logger.error)
+					.catch((e) => {
+						this._logger.error(e)
+						this.iNewsWatcher?.forceResendRundown(rundownExternalId)
+					})
 			})
 			.on('segment_update', (rundownExternalId, _segmentId, newSegment) => {
 				this._coreHandler.core
 					.callMethodRaw(PeripheralDeviceAPIMethods.dataSegmentUpdate, [rundownExternalId, newSegment])
-					.catch(this._logger.error)
+					.catch((e) => {
+						this._logger.error(e)
+						this.iNewsWatcher?.forceResendRundown(rundownExternalId)
+					})
 			})
-			.on('segment_ranks_update', (rundownExteralId, newRanks) => {
-				this._coreHandler.core.callMethodRaw(PeripheralDeviceAPIMethods.dataSegmentRanksUpdate, [
-					rundownExteralId,
-					newRanks,
-				])
+			.on('segment_ranks_update', (rundownExternalId, newRanks) => {
+				this._coreHandler.core
+					.callMethodRaw(PeripheralDeviceAPIMethods.dataSegmentRanksUpdate, [rundownExternalId, newRanks])
+					.catch((e) => {
+						this._logger.error(e)
+						this.iNewsWatcher?.forceResendRundown(rundownExternalId)
+					})
 			})
 	}
 
