@@ -373,14 +373,19 @@ export class RundownWatcher extends EventEmitter {
 
 		const iNewsData = await iNewsDataPs
 
+		// Build a pending cache combining existing data with newly fetched data.
+		// We only commit this to this.cachedINewsData after all processing succeeds,
+		// so a failure mid-way leaves the cache in a clean last-known-good state
+		// and the next poll cycle will naturally re-fetch and retry.
+		const pendingINewsData: Map<SegmentId, UnrankedSegment> = new Map(this.cachedINewsData)
 		for (let [externalId, data] of iNewsData.entries()) {
-			this.cachedINewsData.set(externalId, data)
+			pendingINewsData.set(externalId, data)
 		}
 
 		const segmentsToResolve: Array<UnrankedSegment> = []
 
 		playlist.segments.forEach((s) => {
-			const cachedData = this.cachedINewsData.get(s.externalId)
+			const cachedData = pendingINewsData.get(s.externalId)
 
 			if (!cachedData) {
 				// Shouldn't be possible.
@@ -438,7 +443,7 @@ export class RundownWatcher extends EventEmitter {
 			const rundownSegments: RundownSegment[] = []
 
 			for (const segmentId of playlistRundown.segments) {
-				const iNewsData = this.cachedINewsData.get(segmentId)
+				const iNewsData = pendingINewsData.get(segmentId)
 
 				if (!iNewsData) {
 					this.logger.error(
@@ -476,9 +481,6 @@ export class RundownWatcher extends EventEmitter {
 			this.cachedAssignedRundowns.get(playlistId) ?? []
 		)
 
-		this.cachedPlaylistAssignments.set(playlistId, playlistAssignments)
-		this.cachedAssignedRundowns.set(playlistId, assignedRundowns)
-
 		let segmentRanks = AssignRanksToSegments(
 			playlistAssignments,
 			changes,
@@ -487,17 +489,40 @@ export class RundownWatcher extends EventEmitter {
 			this.lastForcedRankRecalculation
 		)
 		const assignedRanks: Map<SegmentId, number> = new Map()
+		const pendingForcedRankRecalculation: Map<RundownId, number> = new Map()
+		const pendingPreviousRanks: Array<{ rundownId: RundownId; assignedRanks: Map<SegmentId, number> }> = []
 		for (const rundown of segmentRanks) {
 			if (rundown.recalculatedAsIntegers) {
-				this.lastForcedRankRecalculation.set(rundown.rundownId, Date.now())
+				pendingForcedRankRecalculation.set(rundown.rundownId, Date.now())
 			}
-
 			for (const [segmentId, rank] of rundown.assignedRanks) {
 				assignedRanks.set(segmentId, rank)
 			}
-			this.updatePreviousRanks(rundown.rundownId, rundown.assignedRanks)
+			pendingPreviousRanks.push({ rundownId: rundown.rundownId, assignedRanks: rundown.assignedRanks })
 		}
 
+		const coreCalls = GenerateCoreCalls(
+			playlistId,
+			changes,
+			playlistAssignments,
+			assignedRanks,
+			pendingINewsData,
+			ingestCacheData,
+			untimedSegments
+		)
+
+		// All processing succeeded — commit all state atomically.
+		// Nothing above this line mutates instance state, so any throw above
+		// leaves the cache at last-known-good and the next poll retries cleanly.
+		this.cachedINewsData = pendingINewsData
+		this.cachedPlaylistAssignments.set(playlistId, playlistAssignments)
+		this.cachedAssignedRundowns.set(playlistId, assignedRundowns)
+		for (const { rundownId, assignedRanks: ranks } of pendingPreviousRanks) {
+			this.updatePreviousRanks(rundownId, ranks)
+		}
+		for (const [rundownId, timestamp] of pendingForcedRankRecalculation) {
+			this.lastForcedRankRecalculation.set(rundownId, timestamp)
+		}
 		for (const segment of playlist.segments) {
 			this.segments.set(segment.externalId, segment)
 		}
@@ -507,16 +532,6 @@ export class RundownWatcher extends EventEmitter {
 		this.playlists.set(
 			playlistId,
 			playlistAssignments.map((r) => r.rundownId)
-		)
-
-		const coreCalls = GenerateCoreCalls(
-			playlistId,
-			changes,
-			playlistAssignments,
-			assignedRanks,
-			this.cachedINewsData,
-			ingestCacheData,
-			untimedSegments
 		)
 
 		for (const call of coreCalls) {
