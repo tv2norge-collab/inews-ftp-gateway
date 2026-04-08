@@ -6,6 +6,7 @@ on:
       - EAV-*
       - v*
       - develop
+      - release/*
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
   workflow_dispatch:
@@ -32,12 +33,14 @@ jobs:
           path: "**/node_modules"
           key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
 
-      - name: Install
-        run: |
-          corepack enable
+      - uses: ./.github/actions/codeartifact-login
+        with:
+          account-id: ${{ secrets.AWS_ACCOUNT_ID }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-          yarn workspaces focus --all --production
-          yarn install --immutable
+      - name: Install
+        run: yarn install --immutable
 
       - name: yarn validate:dependencies
         run: yarn validate:dependencies
@@ -46,10 +49,18 @@ jobs:
       - name: yarn build
         run: yarn build
 
+      - name: Install production dependencies
+        run: yarn workspaces focus --all --production
+
       - uses: actions/upload-artifact@v4
         with:
           name: dist artifacts
           path: dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: node_modules artifacts
+          path: node_modules
 
   dockerhub-release-branch:
     runs-on: ubuntu-latest
@@ -66,11 +77,17 @@ jobs:
         with:
           name: dist artifacts
           path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: node_modules artifacts
+          path: node_modules
+
       - name: Determine if images should be published to ecr
         id: ecrrepo
         run: |
           # check if a release branch, or master, or a tag
-          if [[ "${{ github.ref }}" == "refs/heads/develop" || "${{ github.ref }}" == "refs/heads/main" || "${{ github.ref }}" == refs/tags/* || "${{ github.ref }}" == refs/heads/EAV-* ]]
+          if [[ "${{ github.ref }}" == "refs/heads/develop" || "${{ github.ref }}" == "refs/heads/main" || "${{ github.ref }}" == refs/tags/* || "${{ github.ref }}" == refs/heads/EAV-* || "${{ github.ref }}" == refs/heads/release/* ]]
           then
               ECRREPO_PUBLISH="1"
           else
@@ -107,6 +124,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: Dockerfile.circle
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -127,6 +145,11 @@ jobs:
         with:
           name: dist artifacts
           path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: node_modules artifacts
+          path: node_modules
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v5
@@ -166,6 +189,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: Dockerfile.circle
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
