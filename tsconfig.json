@@ -4,6 +4,7 @@
 	"compilerOptions": {
 		"resolveJsonModule": true,
 		"esModuleInterop": false,
-		"strict": true
+		"strict": true,
+		"skipLibCheck": true
 	}
 }
