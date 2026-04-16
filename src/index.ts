@@ -49,10 +49,10 @@ setLogLevel(logLevel)
 
 // Because the default NodeJS-handler sucks and wont display error properly
 process.on('unhandledRejection', (error: any) => {
-	logger.data(error).error('Unhandled Promise rejection:')
+	logger.error({ err: error }, 'Unhandled Promise rejection')
 })
 process.on('warning', (error: any) => {
-	logger.data(error).warn('Unhandled warning:')
+	logger.warn({ err: error }, 'Unhandled warning')
 })
 
 logger.info('-----------------------------------')
@@ -94,4 +94,4 @@ let c = new Connector(logger, config, debug)
 
 logger.info(`Core: ${config.core.host}:${config.core.port}`)
 logger.info('-----------------------------------')
-c.init().catch(logger.error)
+c.init().catch((e) => logger.error({ err: e }, 'Connector init failed'))

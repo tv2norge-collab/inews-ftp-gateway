@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, isAxiosError } from 'axios'
 import { INewsStory, INewsFTPStory } from '@tv2media/inews'
 import { logger as defaultLogger } from '../logger'
-import { ILogger as Logger } from '@tv2media/logger'
+import type { Logger } from 'pino'
 import { HttpInewsClientOptions, HttpInewsHealth, InewsHttpProxyConfig } from './types/HttpInews'
 
 /**
@@ -24,7 +24,8 @@ export class HttpInewsClient {
 		}
 
 		this._baseUrl = options.settings.hosts[0]
-		this._logger = options.logger?.tag(this.constructor.name) ?? defaultLogger.tag(this.constructor.name)
+		this._logger =
+			options.logger?.child({ tag: this.constructor.name }) ?? defaultLogger.child({ tag: this.constructor.name })
 		this._http = this.createHttpInstance(options.inewsHttpProxy)
 	}
 
@@ -114,7 +115,7 @@ export class HttpInewsClient {
 			}
 		}
 
-		this._logger.data(error).error(errorMessage)
+		this._logger.error({ err: error }, errorMessage)
 		throw new Error(errorMessage)
 	}
 }

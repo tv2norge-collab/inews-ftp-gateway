@@ -8,7 +8,7 @@ import {
 	PeripheralDevicePubSubCollectionsNames,
 	StudioId,
 } from '@sofie-automation/server-core-integration'
-import { ILogger as Logger } from '@tv2media/logger'
+import type { Logger } from 'pino'
 import * as fs from 'fs'
 import { Process } from './process'
 import {
@@ -59,7 +59,7 @@ export class CoreHandler {
 	public iNewsHandler?: InewsHttpHandler
 
 	constructor(logger: Logger, deviceOptions: DeviceConfig) {
-		this.logger = logger.tag(this.constructor.name)
+		this.logger = logger.child({ tag: this.constructor.name })
 		this.core = new CoreConnection(this.getCoreConnectionOptions(deviceOptions))
 	}
 
@@ -70,14 +70,14 @@ export class CoreHandler {
 		this.core.onConnected(() => {
 			this.logger.info('Core Connected!')
 			if (this._isInitialized) {
-				this.onConnectionRestored().catch((error) => this.logger.data(error).error('onConnected error:'))
+				this.onConnectionRestored().catch((error) => this.logger.error({ err: error }, 'onConnected error'))
 			}
 		})
 		this.core.onDisconnected(() => {
 			this.logger.info('Core Disconnected!')
 		})
 		this.core.onError((error) => {
-			this.logger.data(error).error('Core Error:')
+			this.logger.error({ err: error }, 'Core Error')
 			this.setStatus(StatusCode.BAD, ['Core error'])
 		})
 
@@ -120,7 +120,7 @@ export class CoreHandler {
 				messages: messages,
 			})
 		} catch (error) {
-			this.logger.data(error).warn('Error when setting status:')
+			this.logger.warn({ err: error }, 'Error when setting status')
 			return {
 				statusCode: StatusCode.WARNING_MAJOR,
 				messages: ['Error when setting status', error as string],
@@ -189,7 +189,7 @@ export class CoreHandler {
 		this._subscriptions = this._subscriptions.concat(subs)
 		this.setupObserverForPeripheralDeviceCommands() // Sets up observers
 		this.executePeripheralDeviceCommands().catch((e) =>
-			this.logger.data(e).error('executePeripheralDeviceCommands error:')
+			this.logger.error({ err: e }, 'executePeripheralDeviceCommands error')
 		) // Runs any commands async
 		this.setupObserverForPeripheralDevices()
 	}
@@ -199,9 +199,7 @@ export class CoreHandler {
 	async executeFunction(cmd: PeripheralDeviceCommand): Promise<void> {
 		if (cmd) {
 			if (this._executedFunctions[unprotectString(cmd._id)]) return // prevent it from running multiple times
-			this.logger
-				.data({ functionName: cmd.functionName, args: cmd.args })
-				.debug('Executing a peripheral device command:')
+			this.logger.debug({ functionName: cmd.functionName, args: cmd.args }, 'Executing a peripheral device command')
 			this._executedFunctions[unprotectString(cmd._id)] = true
 			let success = false
 
@@ -249,11 +247,11 @@ export class CoreHandler {
 						throw Error('Function "' + cmd.functionName + '" not found!')
 				}
 			} catch (error) {
-				this.logger.data(error).error(`executeFunction error ${success ? 'during execution' : 'on reply'}:`)
+				this.logger.error({ err: error }, `executeFunction error ${success ? 'during execution' : 'on reply'}`)
 				if (!success) {
 					await this.core
 						.callMethodRaw(PeripheralDeviceAPIMethods.functionReply, [cmd._id, (error as any).toString(), null])
-						.catch((e) => this.logger.data(e).error('executeFunction reply error after execution failure:'))
+						.catch((e) => this.logger.error({ err: e }, 'executeFunction reply error after execution failure'))
 				}
 			}
 		}
@@ -284,7 +282,9 @@ export class CoreHandler {
 			let cmd = cmds.findOne(id)
 			if (!cmd) throw Error('PeripheralCommand "' + id + '" not found!')
 			if (cmd.deviceId === this.core.deviceId) {
-				this.executeFunction(cmd).catch((e) => this.logger.data(e).error(`Error executing command received from core:`))
+				this.executeFunction(cmd).catch((e) =>
+					this.logger.error({ err: e }, 'Error executing command received from core')
+				)
 			}
 		}
 		observer.added = (id: PeripheralDeviceCommandId) => {
@@ -426,11 +426,11 @@ export class CoreHandler {
 						versions[dir] = json.version || 'N/A'
 					}
 				} catch (e) {
-					this.logger.error(e)
+					this.logger.error({ err: e }, 'Failed to read package version')
 				}
 			})
 		} catch (e) {
-			this.logger.error(e)
+			this.logger.error({ err: e }, 'Failed to read node_modules versions')
 		}
 		return versions
 	}

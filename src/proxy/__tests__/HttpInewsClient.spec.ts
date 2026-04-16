@@ -1,24 +1,27 @@
 // 1. Mock the entire axios module. Jest will automatically handle this before any imports.
 import axios from 'axios'
 import { HttpInewsClient } from '../HttpInewsClient'
-import { ILogger } from '@tv2media/logger'
-
 jest.mock('axios')
 
 const mockedAxios = axios as jest.Mocked<typeof axios>
 const mockGet = jest.fn()
 
-const mockLogger: ILogger = {
+const mockChildLogger = {
 	debug: jest.fn(),
 	error: jest.fn(),
-	data: jest.fn().mockReturnThis(),
-	tag: jest.fn().mockReturnThis(),
 	warn: jest.fn(),
 	info: jest.fn(),
 	trace: jest.fn(),
-	meta: jest.fn().mockReturnThis(),
-	setLevel: jest.fn(),
 }
+
+const mockLogger = {
+	debug: jest.fn(),
+	error: jest.fn(),
+	warn: jest.fn(),
+	info: jest.fn(),
+	trace: jest.fn(),
+	child: jest.fn().mockReturnValue(mockChildLogger),
+} as any
 
 const settings = {
 	hosts: ['http://localhost:3000'],
@@ -70,6 +73,8 @@ describe('HttpInewsClient', () => {
 	beforeEach(() => {
 		// Reset mocks and setup the mocked return value for axios.create
 		jest.clearAllMocks()
+		// Re-setup child mock after clearAllMocks resets it
+		mockLogger.child.mockReturnValue(mockChildLogger)
 		// 3. Ensure axios.create returns our mock instance with the mock 'get' function
 		mockedAxios.create.mockReturnValue({ get: mockGet } as any)
 		client = new HttpInewsClient(clientOptions)
@@ -81,14 +86,14 @@ describe('HttpInewsClient', () => {
 			mockGet.mockResolvedValue({ data: [mockFTPStory] })
 			const result = await client.listStories('QUEUE')
 			expect(result).toEqual([mockFTPStory])
-			expect(mockLogger.debug).toHaveBeenCalled()
+			expect(mockChildLogger.debug).toHaveBeenCalled()
 		})
 
 		it('throws and logs on error', async () => {
 			// Setup the rejected promise for this test
 			mockGet.mockRejectedValue(new Error('fail'))
 			await expect(client.listStories('QUEUE')).rejects.toThrow('Failed to list stories for queue')
-			expect(mockLogger.error).toHaveBeenCalled()
+			expect(mockChildLogger.error).toHaveBeenCalled()
 		})
 
 		it('handles timeout error', async () => {
@@ -100,7 +105,7 @@ describe('HttpInewsClient', () => {
 			}
 			mockGet.mockRejectedValue(timeoutError)
 			await expect(client.listStories('QUEUE')).rejects.toThrow(`Failed to list stories for queue 'QUEUE'`)
-			expect(mockLogger.error).toHaveBeenCalled()
+			expect(mockChildLogger.error).toHaveBeenCalled()
 		})
 	})
 

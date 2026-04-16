@@ -15,7 +15,7 @@ import { Mutex } from 'async-mutex'
 import { AssignRanksToSegments } from '../helpers/AssignRanksToSegments'
 import { CoreCallType, GenerateCoreCalls } from '../helpers/GenerateCoreCalls'
 import { assertUnreachable } from '../helpers'
-import { ILogger as Logger } from '@tv2media/logger'
+import type { Logger } from 'pino'
 import { HttpInewsClient } from '../proxy/HttpInewsClient'
 
 dotenv.config()
@@ -204,7 +204,7 @@ export class RundownWatcher extends EventEmitter {
 		delayStart?: boolean
 	) {
 		super()
-		this._logger = this.logger.tag(this.constructor.name)
+		this._logger = this.logger.child({ tag: this.constructor.name })
 
 		this.rundownManager = new RundownManager(this._logger, this.iNewsConnection)
 
@@ -237,11 +237,11 @@ export class RundownWatcher extends EventEmitter {
 					}
 				},
 				async (error) => {
-					this.logger.data(error).error('Something went wrong during check:')
+					this.logger.error({ err: error }, 'Something went wrong during check')
 					await this.coreHandler.setStatus(StatusCode.WARNING_MAJOR, ['INews rundowns check failed'])
 				}
 			)
-			.catch(this._logger.error)
+			.catch((e) => this._logger.error({ err: e }, 'Unexpected error after rundown check'))
 			.finally(() => this.startPollTimer())
 	}
 
@@ -326,7 +326,7 @@ export class RundownWatcher extends EventEmitter {
 			try {
 				await this.processUpdatedRundown(rundown.externalId, rundown)
 			} catch (e) {
-				this.logger.error(e as any)
+				this.logger.error({ err: e }, 'Error processing updated rundown')
 			}
 			release()
 		}

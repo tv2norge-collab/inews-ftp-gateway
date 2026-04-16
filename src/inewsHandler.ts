@@ -4,7 +4,7 @@ import { RundownWatcher, RundownMap, ReducedRundown, ReducedSegment } from './cl
 import { literal } from './helpers'
 import { RundownSegment } from './classes/datastructures/Segment'
 import { VERSION } from './version'
-import { ILogger as Logger } from '@tv2media/logger'
+import type { Logger } from 'pino'
 import { StatusCode } from '@sofie-automation/shared-lib/dist/lib/status'
 import { PeripheralDeviceAPIMethods } from '@sofie-automation/shared-lib/dist/peripheralDevice/methodsAPI'
 import {
@@ -39,7 +39,7 @@ export class InewsHttpHandler {
 	private _config: Config
 
 	constructor(logger: Logger, coreHandler: CoreHandler, config: Config) {
-		this._logger = logger.tag(this.constructor.name)
+		this._logger = logger.child({ tag: this.constructor.name })
 		this._coreHandler = coreHandler
 		this._config = config
 	}
@@ -55,7 +55,7 @@ export class InewsHttpHandler {
 		try {
 			await this._setupDevices()
 		} catch (error) {
-			this._logger.data(error).error('Error during setup devices:')
+			this._logger.error({ err: error }, 'Error during setup devices')
 		}
 	}
 
@@ -161,45 +161,45 @@ export class InewsHttpHandler {
 				this._logger.info(message)
 			})
 			.on('error', (error: any) => {
-				this._logger.error(error)
+				this._logger.error({ err: error }, 'RundownWatcher error event')
 			})
 			.on('warning', (warning: any) => {
-				this._logger.error(warning)
+				this._logger.warn({ warning }, 'RundownWatcher warning event')
 			})
 			.on('rundown_delete', (rundownExternalId) => {
 				this._coreHandler.core
 					.callMethodRaw(PeripheralDeviceAPIMethods.dataRundownDelete, [rundownExternalId])
-					.catch(this._logger.error)
+					.catch((e) => this._logger.error({ err: e }, 'Failed to delete rundown in Core'))
 			})
 			.on('rundown_create', (_rundownExternalId, rundown) => {
 				this._coreHandler.core
 					.callMethodRaw(PeripheralDeviceAPIMethods.dataRundownCreate, [rundown])
-					.catch(this._logger.error)
+					.catch((e) => this._logger.error({ err: e }, 'Failed to create rundown in Core'))
 			})
 			.on('rundown_update', (_rundownExternalId, rundown) => {
 				this._coreHandler.core
 					.callMethodRaw(PeripheralDeviceAPIMethods.dataRundownUpdate, [rundown])
-					.catch(this._logger.error)
+					.catch((e) => this._logger.error({ err: e }, 'Failed to update rundown in Core'))
 			})
 			.on('rundown_metadata_update', (_rundownExternalId, rundown) => {
 				this._coreHandler.core
 					.callMethodRaw(PeripheralDeviceAPIMethods.dataRundownMetaDataUpdate, [rundown])
-					.catch(this._logger.error)
+					.catch((e) => this._logger.error({ err: e }, 'Failed to update rundown metadata in Core'))
 			})
 			.on('segment_delete', (rundownExternalId, segmentId) => {
 				this._coreHandler.core
 					.callMethodRaw(PeripheralDeviceAPIMethods.dataSegmentDelete, [rundownExternalId, segmentId])
-					.catch(this._logger.error)
+					.catch((e) => this._logger.error({ err: e }, 'Failed to delete segment in Core'))
 			})
 			.on('segment_create', (rundownExternalId, _segmentId, newSegment) => {
 				this._coreHandler.core
 					.callMethodRaw(PeripheralDeviceAPIMethods.dataSegmentCreate, [rundownExternalId, newSegment])
-					.catch(this._logger.error)
+					.catch((e) => this._logger.error({ err: e }, 'Failed to create segment in Core'))
 			})
 			.on('segment_update', (rundownExternalId, _segmentId, newSegment) => {
 				this._coreHandler.core
 					.callMethodRaw(PeripheralDeviceAPIMethods.dataSegmentUpdate, [rundownExternalId, newSegment])
-					.catch(this._logger.error)
+					.catch((e) => this._logger.error({ err: e }, 'Failed to update segment in Core'))
 			})
 			.on('segment_ranks_update', (rundownExteralId, newRanks) => {
 				this._coreHandler.core.callMethodRaw(PeripheralDeviceAPIMethods.dataSegmentRanksUpdate, [
@@ -217,7 +217,7 @@ export class InewsHttpHandler {
 	public async checkHealthAndUpdateStatus(): Promise<boolean> {
 		try {
 			const health: HttpInewsHealth | undefined = await this._httpClient?.getHealth()
-			this._logger.debug('health', health)
+			this._logger.debug({ health }, 'health')
 			const wasConnected = this._isConnected
 			this._isConnected = !!(health && health.status === 'ok' && health.inewsConnected === true)
 			if (!wasConnected && this._isConnected) {
