@@ -9,7 +9,7 @@ import {
 	PeripheralDevicePubSubCollectionsNames,
 } from '@sofie-automation/server-core-integration'
 import { ensureLogLevel, setLogLevel } from './logger'
-import { ILogger as Logger } from '@tv2media/logger'
+import type { Logger } from 'pino'
 import { InewsHttpProxyConfig } from './proxy/types/HttpInews'
 
 export interface Config {
@@ -39,7 +39,7 @@ export class Connector {
 	private _debug: boolean
 
 	constructor(logger: Logger, config: Config, debug: boolean) {
-		this._logger = logger.tag(this.constructor.name)
+		this._logger = logger.child({ tag: this.constructor.name })
 		this._config = config
 		this._debug = debug
 		this._process = new Process(this._logger)
@@ -59,10 +59,10 @@ export class Connector {
 			this.setupObserver()
 			this._logger.info('Initialization of FTP-monitor done')
 		} catch (err) {
-			this._logger.data(err).error(`Error during initialization:`)
+			this._logger.error({ err }, 'Error during initialization')
 
 			this._logger.info('Shutting down in 10 seconds!')
-			this.dispose().catch((e) => this._logger.data(e).error('Error during dispose'))
+			this.dispose().catch((e) => this._logger.error({ err: e }, 'Error during dispose'))
 
 			setTimeout(() => {
 				process.exit(0)
@@ -118,7 +118,7 @@ export class Connector {
 							return this.initInewsHTTPHandler()
 						})
 						.catch((error) => {
-							this._logger.data(error).error('Failed to update iNewsFTP settings:')
+							this._logger.error({ err: error }, 'Failed to update iNewsFTP settings')
 							throw new Error('Failed to update iNewsFTP settings')
 						})
 				}

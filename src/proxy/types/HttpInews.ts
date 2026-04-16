@@ -1,4 +1,4 @@
-import { ILogger as Logger } from '@tv2media/logger'
+import type { Logger } from 'pino'
 import { INewsDeviceSettings } from '../../inewsHandler'
 
 export interface HttpInewsHealth {
