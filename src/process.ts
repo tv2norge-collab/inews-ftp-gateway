@@ -1,4 +1,4 @@
-import { ILogger as Logger } from '@tv2media/logger'
+import type { Logger } from 'pino'
 import { readFile } from 'fs'
 import { promisify } from 'util'
 import { ProcessConfig } from './connector'
@@ -11,7 +11,7 @@ export class Process {
 	public certificates: Buffer[] = []
 
 	constructor(logger: Logger) {
-		this.logger = logger.tag(this.constructor.name)
+		this.logger = logger.child({ tag: this.constructor.name })
 	}
 
 	async init(processConfig: ProcessConfig): Promise<void> {
@@ -30,7 +30,7 @@ export class Process {
 						this.logger.info(`Using certificate "${certificate}"`)
 						return certData
 					} catch (error) {
-						this.logger.data(error).error(`Error loading certificate "${certificate}"`)
+						this.logger.error({ err: error }, `Error loading certificate "${certificate}"`)
 						return Buffer.alloc(0)
 					}
 				})

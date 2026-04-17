@@ -1,8 +1,42 @@
-import { createDefaultLogger, Level } from '@tv2media/logger'
+import pino = require('pino')
+import { ecsFormat } from '@elastic/ecs-pino-format'
 
-export let logger = createDefaultLogger()
+export type Logger = pino.Logger
 
-export function setupLogger() {
+const PINO_LEVELS = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'] as const
+type PinoLevel = typeof PINO_LEVELS[number]
+
+const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev'
+
+function createLogger(): pino.Logger {
+	const level: PinoLevel = ensureLogLevel(process.env.LOG_LEVEL) ?? 'warn'
+
+	if (isDevelopment) {
+		return pino({
+			level,
+			transport: {
+				target: 'pino-pretty',
+				options: {
+					colorize: true,
+					translateTime: 'HH:MM:ss',
+					ignore: 'pid,hostname',
+				},
+			},
+		})
+	}
+
+	return pino({
+		level,
+		...ecsFormat({
+			convertErr: true,
+			serviceName: 'inews-gateway',
+		}),
+	})
+}
+
+export let logger = createLogger()
+
+export function setupLogger(): void {
 	// Hijack console.log:
 	// @ts-ignore
 	if (!process.env.DEV) {
@@ -22,10 +56,10 @@ export function setupLogger() {
 	}
 }
 
-export function setLogLevel(level: keyof typeof Level) {
-	logger.setLevel(Level[level])
+export function setLogLevel(level: PinoLevel): void {
+	logger.level = level
 }
 
-export function ensureLogLevel(level?: string): keyof typeof Level | undefined {
-	return Object.keys(Level).find((l) => l === level) as keyof typeof Level | undefined
+export function ensureLogLevel(level?: string): PinoLevel | undefined {
+	return PINO_LEVELS.find((l) => l === level)
 }

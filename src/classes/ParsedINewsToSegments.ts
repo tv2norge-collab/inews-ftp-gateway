@@ -1,6 +1,6 @@
 import { RundownId, SegmentId } from '../helpers/id'
 import _ = require('underscore')
-import { ILogger as Logger } from '@tv2media/logger'
+import type { Logger } from 'pino'
 import { SegmentChanges } from '../helpers/DiffPlaylist'
 
 export interface IParsedElement {
@@ -68,7 +68,10 @@ export class ParsedINewsIntoSegments {
 				segmentRanks.set(segmentId, newRank)
 				assignedRanks.push(newRank)
 			} else {
-				logger?.data(insertedSegments.join(',')).debug(`Don't know what to do with ranks for ${segmentId}`)
+				logger?.debug(
+					{ insertedSegments: insertedSegments.join(',') },
+					`Don't know what to do with ranks for ${segmentId}`
+				)
 			}
 		})
 

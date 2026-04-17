@@ -3,7 +3,7 @@ import { ReducedRundown, ReducedSegment, UnrankedSegment } from './RundownWatche
 import { literal, parseModifiedDateFromInewsStoryWithFallbackToNow, ReflectPromise } from '../helpers'
 import { VERSION } from '../version'
 import { SegmentId } from '../helpers/id'
-import { ILogger as Logger } from '@tv2media/logger'
+import type { Logger } from 'pino'
 import { HttpInewsClient } from '../proxy/HttpInewsClient'
 import { INewsFTPStory, INewsFTPStoryOrQueue, INewsStory } from '@tv2media/inews'
 
@@ -57,7 +57,7 @@ export class RundownManager {
 				}
 			})
 		} catch (error) {
-			this._logger.data(error).error('Error downloading iNews rundown:')
+			this._logger.error({ err: error }, 'Error downloading iNews rundown')
 		}
 		return rundown
 	}
@@ -114,7 +114,7 @@ export class RundownManager {
 			}
 			this._logger.debug(`[downloadINewsStory] Final story object: ${JSON.stringify(story)}`)
 		} catch (err) {
-			this._logger.error(`[downloadINewsStory] Error: ${err} ${JSON.stringify(err)}`)
+			this._logger.error({ err }, '[downloadINewsStory] Error downloading story')
 			return undefined
 		}
 
