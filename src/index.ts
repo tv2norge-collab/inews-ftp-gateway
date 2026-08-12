@@ -4,7 +4,7 @@ import { ensureLogLevel, logger, setLogLevel, setupLogger } from './logger'
 
 const argv = yargs(process.argv.slice(2))
 	.options({
-		host: { type: 'string', default: '127.0.01', describe: 'Host of core' },
+		host: { type: 'string', default: '127.0.0.1', describe: 'Host of core' },
 		port: { type: 'number', default: 3000, describe: 'Port of core' },
 		log: { type: 'string', required: false, describe: 'File path to output logs to' },
 		id: { type: 'string', required: false, describe: 'Set device Id' },
