@@ -7,16 +7,17 @@ import { InewsHttpHandler } from '../inewsHandler'
 import { StatusCode } from '@sofie-automation/shared-lib/dist/lib/status'
 import { CoreHandler } from '../coreHandler'
 import { SegmentRankings, SegmentRankingsInner } from './ParsedINewsToSegments'
-import { IngestPlaylist, IngestRundown, IngestSegment } from '@sofie-automation/blueprints-integration'
+import { IngestPlaylist } from '@sofie-automation/blueprints-integration'
 import { ResolvedPlaylist, ResolveRundownIntoPlaylist } from '../helpers/ResolveRundownIntoPlaylist'
 import { DiffPlaylist } from '../helpers/DiffPlaylist'
 import { PlaylistId, RundownId, SegmentId } from '../helpers/id'
 import { Mutex } from 'async-mutex'
 import { AssignRanksToSegments } from '../helpers/AssignRanksToSegments'
-import { CoreCallType, GenerateCoreCalls } from '../helpers/GenerateCoreCalls'
-import { assertUnreachable } from '../helpers'
+import { GenerateCoreCalls } from '../helpers/GenerateCoreCalls'
 import type { Logger } from 'pino'
 import { HttpInewsClient } from '../proxy/HttpInewsClient'
+import { CoreIngestClient } from './CoreIngestClient'
+import { CoreCallDispatcher } from './CoreCallDispatcher'
 
 dotenv.config()
 
@@ -136,36 +137,11 @@ export function IsReducedSegment(segment: any): segment is ReducedSegment {
 export class RundownWatcher extends EventEmitter {
 	on!: ((event: 'info', listener: (message: string) => void) => this) &
 		((event: 'error', listener: (error: any, stack?: any) => void) => this) &
-		((event: 'warning', listener: (message: string) => void) => this) &
-		((event: 'rundown_delete', listener: (rundownId: string) => void) => this) &
-		((event: 'rundown_create', listener: (rundownId: string, rundown: IngestRundown) => void) => this) &
-		((event: 'rundown_update', listener: (rundownId: string, rundown: IngestRundown) => void) => this) &
-		((event: 'rundown_metadata_update', listener: (rundownId: string, rundown: IngestRundown) => void) => this) &
-		((event: 'segment_delete', listener: (rundownId: string, segmentId: string) => void) => this) &
-		((
-			event: 'segment_create',
-			listener: (rundownId: string, segmentId: string, newSegment: IngestSegment) => void
-		) => this) &
-		((
-			event: 'segment_update',
-			listener: (rundownId: string, segmentId: string, newSegment: IngestSegment) => void
-		) => this) &
-		((
-			event: 'segment_ranks_update',
-			listener: (rundownId: string, newRanks: { [segmentExternalId: string]: number }) => void
-		) => this)
+		((event: 'warning', listener: (message: string) => void) => this)
 
 	emit!: ((event: 'info', message: string) => boolean) &
 		((event: 'error', message: string) => boolean) &
-		((event: 'warning', message: string) => boolean) &
-		((event: 'rundown_delete', rundownId: string) => boolean) &
-		((event: 'rundown_create', rundownId: string, rundown: IngestRundown) => boolean) &
-		((event: 'rundown_update', rundownId: string, rundown: IngestRundown) => boolean) &
-		((event: 'rundown_metadata_update', rundownId: string, rundown: IngestRundown) => boolean) &
-		((event: 'segment_delete', rundownId: string, segmentId: string) => boolean) &
-		((event: 'segment_create', rundownId: string, segmentId: string, newSegment: IngestSegment) => boolean) &
-		((event: 'segment_update', rundownId: string, segmentId: string, newSegment: IngestSegment) => boolean) &
-		((event: 'segment_ranks_update', rundownId: string, newRanks: { [segmentExternalId: string]: number }) => boolean)
+		((event: 'warning', message: string) => boolean)
 
 	public pollInterval: number = 2000
 	private pollTimer: NodeJS.Timeout | undefined
@@ -185,6 +161,8 @@ export class RundownWatcher extends EventEmitter {
 	public segments: SegmentCache = new Map()
 
 	private processingRundown: Mutex = new Mutex()
+
+	private coreCallDispatcher: CoreCallDispatcher
 
 	/**
 	 * A Rundown watcher which will poll iNews FTP server for changes and emit events
@@ -207,6 +185,7 @@ export class RundownWatcher extends EventEmitter {
 		this._logger = this.logger.child({ tag: this.constructor.name })
 
 		this.rundownManager = new RundownManager(this._logger, this.iNewsConnection)
+		this.coreCallDispatcher = new CoreCallDispatcher(new CoreIngestClient(this.coreHandler), this._logger)
 
 		if (!delayStart) {
 			this.startWatcher()
@@ -511,8 +490,17 @@ export class RundownWatcher extends EventEmitter {
 			untimedSegments
 		)
 
-		// All processing succeeded — commit all state atomically.
-		// Nothing above this line mutates instance state, so any throw above
+		try {
+			await this.coreCallDispatcher.dispatchAll(coreCalls)
+		} catch {
+			// Already logged inside dispatchAll. Bail out without committing local
+			// cache, so the next poll cycle re-diffs from last-known-good state and
+			// retries the whole batch instead of silently drifting out of sync with Core.
+			return
+		}
+
+		// All Core calls landed — commit local state atomically.
+		// Nothing above this line mutates instance state, so any throw or rejection above
 		// leaves the cache at last-known-good and the next poll retries cleanly.
 		this.cachedINewsData = pendingINewsData
 		this.cachedPlaylistAssignments.set(playlistId, playlistAssignments)
@@ -533,37 +521,6 @@ export class RundownWatcher extends EventEmitter {
 			playlistId,
 			playlistAssignments.map((r) => r.rundownId)
 		)
-
-		for (const call of coreCalls) {
-			switch (call.type) {
-				case CoreCallType.dataRundownCreate:
-					this.emitRundownCreated(call.rundown)
-					break
-				case CoreCallType.dataRundownDelete:
-					this.emitRundownDeleted(call.rundownExternalId)
-					break
-				case CoreCallType.dataRundownUpdate:
-					this.emitRundownUpdated(call.rundown)
-					break
-				case CoreCallType.dataSegmentCreate:
-					this.emitSegmentCreated(call.rundownExternalId, call.segment)
-					break
-				case CoreCallType.dataSegmentDelete:
-					this.emitSegmentDeleted(call.rundownExternalId, call.segmentExternalId)
-					break
-				case CoreCallType.dataSegmentUpdate:
-					this.emitSegmentUpdated(call.rundownExternalId, call.segment)
-					break
-				case CoreCallType.dataSegmentRanksUpdate:
-					this.emitUpdatedSegmentRanks(call.rundownExternalId, call.ranks)
-					break
-				case CoreCallType.dataRundownMetaDataUpdate:
-					this.emitRundownMetaDataUpdated(call.rundown)
-					break
-				default:
-					assertUnreachable(call)
-			}
-		}
 	}
 
 	private updatePreviousRanks(rundownId: RundownId, segments: Map<SegmentId, number>) {
@@ -574,45 +531,5 @@ export class RundownWatcher extends EventEmitter {
 			})
 		}
 		this.previousRanks.set(rundownId, ranksMap)
-	}
-
-	private emitRundownDeleted(rundownExternalId: string) {
-		this.logger.info(`Emitting rundown delete ${rundownExternalId}`)
-		this.emit('rundown_delete', rundownExternalId)
-	}
-
-	private emitRundownCreated(rundown: IngestRundown) {
-		this.logger.info(`Emitting rundown create ${rundown.externalId}`)
-		this.emit('rundown_create', rundown.externalId, rundown)
-	}
-
-	private emitRundownUpdated(rundown: IngestRundown) {
-		this.logger.info(`Emitting rundown update ${rundown.externalId}`)
-		this.emit('rundown_update', rundown.externalId, rundown)
-	}
-
-	private emitRundownMetaDataUpdated(rundown: IngestRundown) {
-		this.logger.info(`Emitting rundown metadata update ${rundown.externalId}`)
-		this.emit('rundown_metadata_update', rundown.externalId, rundown)
-	}
-
-	private emitSegmentCreated(rundownId: RundownId, segment: IngestSegment) {
-		this.logger.info(`Emitting segment create ${segment.externalId} in ${rundownId}`)
-		this.emit('segment_create', rundownId, segment.externalId, segment)
-	}
-
-	private emitSegmentUpdated(rundownId: RundownId, segment: IngestSegment) {
-		this.logger.info(`Emitting segment update ${segment.externalId} in ${rundownId}`)
-		this.emit('segment_update', rundownId, segment.externalId, segment)
-	}
-
-	public emitSegmentDeleted(rundownId: RundownId, segmentId: SegmentId) {
-		this.logger.info(`Emitting segment delete ${segmentId} in ${rundownId}`)
-		this.emit('segment_delete', rundownId, segmentId)
-	}
-
-	private emitUpdatedSegmentRanks(rundownId: RundownId, ranks: { [segmentId: string]: number }) {
-		this.logger.info(`Emitting segment ranks update ${rundownId}`)
-		this.emit('segment_ranks_update', rundownId, ranks)
 	}
 }

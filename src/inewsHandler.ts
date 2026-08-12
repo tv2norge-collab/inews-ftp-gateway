@@ -6,7 +6,6 @@ import { RundownSegment } from './classes/datastructures/Segment'
 import { VERSION } from './version'
 import type { Logger } from 'pino'
 import { StatusCode } from '@sofie-automation/shared-lib/dist/lib/status'
-import { PeripheralDeviceAPIMethods } from '@sofie-automation/shared-lib/dist/peripheralDevice/methodsAPI'
 import {
 	PeripheralDeviceForDevice,
 	PeripheralDevicePubSubCollectionsNames,
@@ -165,47 +164,6 @@ export class InewsHttpHandler {
 			})
 			.on('warning', (warning: any) => {
 				this._logger.warn({ warning }, 'RundownWatcher warning event')
-			})
-			.on('rundown_delete', (rundownExternalId) => {
-				this._coreHandler.core
-					.callMethodRaw(PeripheralDeviceAPIMethods.dataRundownDelete, [rundownExternalId])
-					.catch((e) => this._logger.error({ err: e }, 'Failed to delete rundown in Core'))
-			})
-			.on('rundown_create', (_rundownExternalId, rundown) => {
-				this._coreHandler.core
-					.callMethodRaw(PeripheralDeviceAPIMethods.dataRundownCreate, [rundown])
-					.catch((e) => this._logger.error({ err: e }, 'Failed to create rundown in Core'))
-			})
-			.on('rundown_update', (_rundownExternalId, rundown) => {
-				this._coreHandler.core
-					.callMethodRaw(PeripheralDeviceAPIMethods.dataRundownUpdate, [rundown])
-					.catch((e) => this._logger.error({ err: e }, 'Failed to update rundown in Core'))
-			})
-			.on('rundown_metadata_update', (_rundownExternalId, rundown) => {
-				this._coreHandler.core
-					.callMethodRaw(PeripheralDeviceAPIMethods.dataRundownMetaDataUpdate, [rundown])
-					.catch((e) => this._logger.error({ err: e }, 'Failed to update rundown metadata in Core'))
-			})
-			.on('segment_delete', (rundownExternalId, segmentId) => {
-				this._coreHandler.core
-					.callMethodRaw(PeripheralDeviceAPIMethods.dataSegmentDelete, [rundownExternalId, segmentId])
-					.catch((e) => this._logger.error({ err: e }, 'Failed to delete segment in Core'))
-			})
-			.on('segment_create', (rundownExternalId, _segmentId, newSegment) => {
-				this._coreHandler.core
-					.callMethodRaw(PeripheralDeviceAPIMethods.dataSegmentCreate, [rundownExternalId, newSegment])
-					.catch((e) => this._logger.error({ err: e }, 'Failed to create segment in Core'))
-			})
-			.on('segment_update', (rundownExternalId, _segmentId, newSegment) => {
-				this._coreHandler.core
-					.callMethodRaw(PeripheralDeviceAPIMethods.dataSegmentUpdate, [rundownExternalId, newSegment])
-					.catch((e) => this._logger.error({ err: e }, 'Failed to update segment in Core'))
-			})
-			.on('segment_ranks_update', (rundownExteralId, newRanks) => {
-				this._coreHandler.core.callMethodRaw(PeripheralDeviceAPIMethods.dataSegmentRanksUpdate, [
-					rundownExteralId,
-					newRanks,
-				])
 			})
 	}
 
