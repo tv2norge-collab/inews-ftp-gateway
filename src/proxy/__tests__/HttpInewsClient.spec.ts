@@ -122,6 +122,42 @@ describe('HttpInewsClient', () => {
 		})
 	})
 
+	describe('request concurrency', () => {
+		it('never has more than 5 requests in flight at once', async () => {
+			let inFlight = 0
+			let maxInFlight = 0
+			const deferreds: Array<() => void> = []
+
+			mockGet.mockImplementation(() => {
+				inFlight++
+				maxInFlight = Math.max(maxInFlight, inFlight)
+				return new Promise((resolve) => {
+					deferreds.push(() => {
+						inFlight--
+						resolve({ data: mockStory })
+					})
+				})
+			})
+
+			const calls = Array.from({ length: 12 }, (_, i) => client.getStory('QUEUE', `story${i}`))
+
+			// Let all the initial synchronous scheduling settle.
+			await new Promise((resolve) => setImmediate(resolve))
+			expect(maxInFlight).toBe(5)
+
+			// Release requests one at a time; in-flight count should never exceed 5.
+			while (deferreds.length) {
+				const release = deferreds.shift()!
+				release()
+				await new Promise((resolve) => setImmediate(resolve))
+			}
+
+			await Promise.all(calls)
+			expect(maxInFlight).toBe(5)
+			expect(mockGet).toHaveBeenCalledTimes(12)
+		})
+	})
+
 	describe('getHealth', () => {
 		it('returns health on success', async () => {
 			mockGet.mockResolvedValue({ data: { status: 'ok' } })

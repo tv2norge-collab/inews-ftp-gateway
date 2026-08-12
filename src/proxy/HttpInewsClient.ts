@@ -1,8 +1,20 @@
 import axios, { AxiosInstance, isAxiosError } from 'axios'
+import PQueue from 'p-queue'
 import { INewsStory, INewsFTPStory } from '@tv2media/inews'
 import { logger as defaultLogger } from '../logger'
 import type { Logger } from 'pino'
 import { HttpInewsClientOptions, HttpInewsHealth, InewsHttpProxyConfig } from './types/HttpInews'
+
+/**
+ * The iNews HTTP proxy serializes requests onto a hard-capped pool of 5 FTP
+ * connections (see inews-http-proxy's INewsConnectionPool, which clamps to 5
+ * regardless of config to respect a legacy iNews server connection limit).
+ * Sending more than 5 requests at once just queues up behind that pool and
+ * risks tripping its 2s acquire timeout, which the proxy surfaces as a 500.
+ * Matching that ceiling here means every request we send should get a pool
+ * connection promptly instead of racing other gateway requests for one.
+ */
+const MAX_CONCURRENT_REQUESTS = 5
 
 /**
  * An HTTP client for interacting with the iNews Gateway API.
@@ -13,6 +25,7 @@ export class HttpInewsClient {
 	private readonly _baseUrl: string
 	private readonly _logger: Logger
 	private readonly _http: AxiosInstance
+	private readonly _queue: PQueue = new PQueue({ concurrency: MAX_CONCURRENT_REQUESTS })
 
 	/**
 	 * Initializes a new instance of the HttpInewsClient.
@@ -55,7 +68,7 @@ export class HttpInewsClient {
 		this._logger.debug(`GET ${url}`)
 
 		try {
-			const response = await this._http.get<INewsFTPStory[]>(url)
+			const response = await this._queue.add(() => this._http.get<INewsFTPStory[]>(url))
 			return response.data
 		} catch (error) {
 			this.handleError(error, `Failed to list stories for queue '${queueName}'`)
@@ -73,7 +86,7 @@ export class HttpInewsClient {
 		this._logger.debug(`GET ${url}`)
 
 		try {
-			const response = await this._http.get<INewsStory>(url)
+			const response = await this._queue.add(() => this._http.get<INewsStory>(url))
 			return response.data
 		} catch (error) {
 			this.handleError(error, `Failed to get story '${storyId}' in queue '${queueName}'`)
