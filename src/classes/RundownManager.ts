@@ -41,24 +41,24 @@ export class RundownManager {
 			gatewayVersion: VERSION,
 			segments: [],
 		}
-		try {
-			let dirList = await this._listStories(queueName)
-			dirList.forEach((ftpFileName: INewsFTPStoryOrQueue, index) => {
-				if (isStory(ftpFileName)) {
-					rundown.segments.push(
-						literal<ReducedSegment>({
-							externalId: ftpFileName.identifier,
-							name: ftpFileName.storyName,
-							modified: ftpFileName.modified ?? new Date(0),
-							locator: ftpFileName.locator,
-							rank: index,
-						})
-					)
-				}
-			})
-		} catch (error) {
-			this._logger.error({ err: error }, 'Error downloading iNews rundown')
-		}
+		// Let a listing failure propagate instead of swallowing it into an empty
+		// segment list: an empty list here is indistinguishable from "iNews queue
+		// genuinely has no stories," and would make the diff engine believe every
+		// previously-known segment was deleted.
+		const dirList = await this._listStories(queueName)
+		dirList.forEach((ftpFileName: INewsFTPStoryOrQueue, index) => {
+			if (isStory(ftpFileName)) {
+				rundown.segments.push(
+					literal<ReducedSegment>({
+						externalId: ftpFileName.identifier,
+						name: ftpFileName.storyName,
+						modified: ftpFileName.modified ?? new Date(0),
+						locator: ftpFileName.locator,
+						rank: index,
+					})
+				)
+			}
+		})
 		return rundown
 	}
 
@@ -67,6 +67,33 @@ export class RundownManager {
 		segmentExternalIds: SegmentId[]
 	): Promise<Map<SegmentId, UnrankedSegment>> {
 		const stories = new Map<SegmentId, UnrankedSegment>()
+		if (!segmentExternalIds.length) {
+			return stories
+		}
+
+		await this.downloadStoriesInto(stories, queueName, segmentExternalIds)
+
+		const missing = segmentExternalIds.filter((id) => !stories.has(id))
+		if (missing.length) {
+			this._logger.warn(`Retrying download of ${missing.length} story/stories in ${queueName}`)
+			try {
+				// Re-lists the queue, so a story whose locator changed mid-flight is
+				// retried against its current one.
+				await this.downloadStoriesInto(stories, queueName, missing)
+			} catch (err) {
+				// Keep whatever the first pass managed to download.
+				this._logger.error({ err }, `Failed to retry story download in ${queueName}`)
+			}
+		}
+
+		return stories
+	}
+
+	private async downloadStoriesInto(
+		stories: Map<SegmentId, UnrankedSegment>,
+		queueName: string,
+		segmentExternalIds: SegmentId[]
+	): Promise<void> {
 		const dirList = await this._listStories(queueName)
 		const ps: Array<Promise<INewsStoryGW | undefined>> = []
 
@@ -92,8 +119,6 @@ export class RundownManager {
 				}
 			}
 		})
-
-		return stories
 	}
 
 	/*

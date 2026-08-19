@@ -15,8 +15,6 @@ import { Mutex } from 'async-mutex'
 import { AssignRanksToSegments } from '../helpers/AssignRanksToSegments'
 import { GenerateCoreCalls } from '../helpers/GenerateCoreCalls'
 import type { Logger } from 'pino'
-import { HttpInewsClient } from '../proxy/HttpInewsClient'
-import { CoreIngestClient } from './CoreIngestClient'
 import { CoreCallDispatcher } from './CoreCallDispatcher'
 
 dotenv.config()
@@ -146,7 +144,6 @@ export class RundownWatcher extends EventEmitter {
 	public pollInterval: number = 2000
 	private pollTimer: NodeJS.Timeout | undefined
 
-	public rundownManager: RundownManager
 	private _logger: Logger
 	private previousRanks: SegmentRankings = new Map()
 	private lastForcedRankRecalculation: Map<RundownId, number> = new Map()
@@ -162,8 +159,6 @@ export class RundownWatcher extends EventEmitter {
 
 	private processingRundown: Mutex = new Mutex()
 
-	private coreCallDispatcher: CoreCallDispatcher
-
 	/**
 	 * A Rundown watcher which will poll iNews FTP server for changes and emit events
 	 * whenever a change occurs.
@@ -174,8 +169,9 @@ export class RundownWatcher extends EventEmitter {
 	 */
 	constructor(
 		private logger: Logger,
-		private iNewsConnection: HttpInewsClient,
 		private coreHandler: CoreHandler,
+		private rundownManager: RundownManager,
+		private coreCallDispatcher: CoreCallDispatcher,
 		private iNewsQueue: Array<string>,
 		private gatewayVersion: string,
 		private handler: InewsHttpHandler,
@@ -183,9 +179,6 @@ export class RundownWatcher extends EventEmitter {
 	) {
 		super()
 		this._logger = this.logger.child({ tag: this.constructor.name })
-
-		this.rundownManager = new RundownManager(this._logger, this.iNewsConnection)
-		this.coreCallDispatcher = new CoreCallDispatcher(new CoreIngestClient(this.coreHandler), this._logger)
 
 		if (!delayStart) {
 			this.startWatcher()
@@ -298,8 +291,14 @@ export class RundownWatcher extends EventEmitter {
 		}
 	}
 
-	async checkINewsRundownById(rundownId: string): Promise<ReducedRundown> {
-		const rundown = await this.rundownManager.downloadRundown(rundownId)
+	async checkINewsRundownById(rundownId: string): Promise<void> {
+		let rundown: ReducedRundown
+		try {
+			rundown = await this.rundownManager.downloadRundown(rundownId)
+		} catch (e) {
+			this.logger.error({ err: e }, `Failed to download rundown ${rundownId}, skipping this poll cycle`)
+			return
+		}
 		if (rundown.gatewayVersion === this.gatewayVersion) {
 			const release = await this.processingRundown.acquire()
 			try {
@@ -309,7 +308,6 @@ export class RundownWatcher extends EventEmitter {
 			}
 			release()
 		}
-		return rundown
 	}
 
 	private async processUpdatedRundown(playlistId: string, playlist: ReducedRundown) {
@@ -361,6 +359,16 @@ export class RundownWatcher extends EventEmitter {
 			pendingINewsData.set(externalId, data)
 		}
 
+		// Segments we wanted but couldn't download. Their listing entry must not be
+		// committed below, otherwise the locator would look up-to-date next cycle and
+		// we'd never re-fetch the content we're still missing.
+		const failedToFetch: Set<SegmentId> = new Set()
+		for (const segmentId of uncachedINewsData) {
+			if (!iNewsData.has(segmentId)) {
+				failedToFetch.add(segmentId)
+			}
+		}
+
 		const segmentsToResolve: Array<UnrankedSegment> = []
 
 		playlist.segments.forEach((s) => {
@@ -390,9 +398,13 @@ export class RundownWatcher extends EventEmitter {
 		// Fetch ingestDataCache for segments that have been modified
 		const ingestDataPromises: Array<Promise<Map<SegmentId, RundownSegment>>> = []
 
+		// Cleared on commit, not here - an abandoned cycle must leave the flag in place
+		// so the retry still skips the cache.
+		const skipCacheConsumed: RundownId[] = []
+
 		for (const rundown of playlistAssignments) {
 			if (this.skipCacheForRundown.has(rundown.rundownId)) {
-				this.skipCacheForRundown.delete(rundown.rundownId)
+				skipCacheConsumed.push(rundown.rundownId)
 				continue
 			}
 
@@ -460,6 +472,12 @@ export class RundownWatcher extends EventEmitter {
 			this.cachedAssignedRundowns.get(playlistId) ?? []
 		)
 
+		if (failedToFetch.size) {
+			this.logger.error(
+				`Sending ${playlistId} without ${failedToFetch.size} segment(s) that could not be downloaded after a retry. They will be restored once iNews serves them again.`
+			)
+		}
+
 		let segmentRanks = AssignRanksToSegments(
 			playlistAssignments,
 			changes,
@@ -505,6 +523,9 @@ export class RundownWatcher extends EventEmitter {
 		this.cachedINewsData = pendingINewsData
 		this.cachedPlaylistAssignments.set(playlistId, playlistAssignments)
 		this.cachedAssignedRundowns.set(playlistId, assignedRundowns)
+		for (const rundownId of skipCacheConsumed) {
+			this.skipCacheForRundown.delete(rundownId)
+		}
 		for (const { rundownId, assignedRanks: ranks } of pendingPreviousRanks) {
 			this.updatePreviousRanks(rundownId, ranks)
 		}
@@ -512,6 +533,7 @@ export class RundownWatcher extends EventEmitter {
 			this.lastForcedRankRecalculation.set(rundownId, timestamp)
 		}
 		for (const segment of playlist.segments) {
+			if (failedToFetch.has(segment.externalId)) continue
 			this.segments.set(segment.externalId, segment)
 		}
 		for (const rundown of playlistAssignments) {

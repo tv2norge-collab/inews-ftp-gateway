@@ -1,6 +1,9 @@
 import * as _ from 'underscore'
 import { CoreHandler } from './coreHandler'
 import { RundownWatcher, RundownMap, ReducedRundown, ReducedSegment } from './classes/RundownWatcher'
+import { RundownManager } from './classes/RundownManager'
+import { CoreIngestClient } from './classes/CoreIngestClient'
+import { CoreCallDispatcher } from './classes/CoreCallDispatcher'
 import { literal } from './helpers'
 import { RundownSegment } from './classes/datastructures/Segment'
 import { VERSION } from './version'
@@ -100,8 +103,9 @@ export class InewsHttpHandler {
 				const queues = (this._settings.queues ?? []).filter((q) => !!q)
 				this.iNewsWatcher = new RundownWatcher(
 					this._logger,
-					this._httpClient,
 					this._coreHandler,
+					new RundownManager(this._logger, this._httpClient),
+					new CoreCallDispatcher(new CoreIngestClient(this._coreHandler), this._logger),
 					this._settings.queues,
 					VERSION,
 					this
