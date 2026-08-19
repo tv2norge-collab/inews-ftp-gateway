@@ -3,8 +3,7 @@ import { CoreCall, CoreCallType, GenerateCoreCalls } from '../GenerateCoreCalls'
 import { PlaylistId, SegmentId } from '../id'
 import { ResolvedPlaylist } from '../ResolveRundownIntoPlaylist'
 import { UnrankedSegment } from '../../classes/RundownWatcher'
-import { literal } from '../../helpers'
-import { INewsFields, INewsStory } from '@tv2media/inews'
+import { makeINewsStory } from '../../classes/__tests__/__mocks__/mockSegments'
 
 describe('GenerateCoreCalls', () => {
 	it('generates metaData calls before segment updated calls', () => {
@@ -58,28 +57,3 @@ describe('GenerateCoreCalls', () => {
 		expect(result[2].type).toEqual(CoreCallType.dataRundownMetaDataUpdate)
 	})
 })
-
-function makeINewsStory(id: string, backTime?: string) {
-	return literal<INewsStory>({
-		id,
-		identifier: id,
-		locator: '',
-		fields: literal<INewsFields>({
-			title: { value: '', attributes: {} },
-			modifyDate: { value: '', attributes: {} },
-			tapeTime: { value: '', attributes: {} },
-			audioTime: { value: '', attributes: {} },
-			totalTime: { value: '', attributes: {} },
-			cumeTime: { value: '', attributes: {} },
-			backTime: { value: backTime ?? '', attributes: {} },
-			pageNumber: { value: '', attributes: {} },
-			layout: { value: '', attributes: {} },
-			runsTime: { value: '', attributes: {} },
-			videoId: { value: '', attributes: {} },
-		}),
-		meta: {},
-		cues: [],
-		body: '',
-		attachments: {},
-	})
-}

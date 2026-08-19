@@ -1,11 +1,44 @@
 import { INewsStoryGW, RundownSegment } from '../../datastructures/Segment'
 import * as _ from 'underscore'
 import { ReducedSegment } from '../../RundownWatcher'
-import { parseModifiedDateFromInewsStoryWithFallbackToNow } from '../../../helpers'
+import { literal, parseModifiedDateFromInewsStoryWithFallbackToNow } from '../../../helpers'
 import { SegmentId } from '../../../helpers/id'
 import { SegmentRankingsInner, SegmentRankings } from '../../ParsedINewsToSegments'
+import { INewsFields } from '@tv2media/inews'
 
 export const rundownId = 'test-rundown'
+
+const emptyField = () => ({ value: '', attributes: {} })
+
+export type INewsStoryOverrides = Partial<Omit<INewsStoryGW, 'fields'>> & { fields?: Partial<INewsFields> }
+
+/** A story with every field present but empty; pass `overrides` for the ones the test cares about. */
+export function makeINewsStory(id: string, overrides: INewsStoryOverrides = {}): INewsStoryGW {
+	return literal<INewsStoryGW>({
+		id,
+		identifier: id,
+		locator: '',
+		meta: {},
+		cues: [],
+		body: '',
+		attachments: {},
+		...overrides,
+		fields: literal<INewsFields>({
+			title: emptyField(),
+			modifyDate: emptyField(),
+			tapeTime: emptyField(),
+			audioTime: emptyField(),
+			totalTime: emptyField(),
+			cumeTime: emptyField(),
+			backTime: emptyField(),
+			pageNumber: emptyField(),
+			layout: emptyField(),
+			runsTime: emptyField(),
+			videoId: emptyField(),
+			...overrides.fields,
+		}),
+	})
+}
 
 export const segmentGW01: ReducedSegment = {
 	name: 'Segment 01',

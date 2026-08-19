@@ -13,7 +13,7 @@ import { INewsRundown } from '../../classes/datastructures/Rundown'
 import { SegmentId } from '../id'
 import { RundownSegment } from '../../classes/datastructures/Segment'
 import { literal } from '../../helpers'
-import { INewsStory, INewsFields } from '@tv2media/inews'
+import { makeINewsStory } from '../../classes/__tests__/__mocks__/mockSegments'
 
 function makeINewsRundown(
 	rundownId: string,
@@ -24,7 +24,7 @@ function makeINewsRundown(
 		(segment, i) =>
 			new RundownSegment(
 				rundownId,
-				makeINewsStory(segment._id, segment.backTime),
+				makeINewsStory(segment._id, { fields: { backTime: { value: segment.backTime ?? '', attributes: {} } } }),
 				new Date(0),
 				'',
 				segment._id,
@@ -37,31 +37,6 @@ function makeINewsRundown(
 	const rundown = new INewsRundown(rundownId, rundownId, 'v0.0', segments, payload)
 
 	return rundown
-}
-
-function makeINewsStory(id: string, backTime?: string) {
-	return literal<INewsStory>({
-		id,
-		identifier: id,
-		locator: '',
-		fields: literal<INewsFields>({
-			title: { value: '', attributes: {} },
-			modifyDate: { value: '', attributes: {} },
-			tapeTime: { value: '', attributes: {} },
-			audioTime: { value: '', attributes: {} },
-			totalTime: { value: '', attributes: {} },
-			cumeTime: { value: '', attributes: {} },
-			backTime: { value: backTime ?? '', attributes: {} },
-			pageNumber: { value: '', attributes: {} },
-			layout: { value: '', attributes: {} },
-			runsTime: { value: '', attributes: {} },
-			videoId: { value: '', attributes: {} },
-		}),
-		meta: {},
-		cues: [],
-		body: '',
-		attachments: {},
-	})
 }
 
 describe('DiffPlaylist', () => {
