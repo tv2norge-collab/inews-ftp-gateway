@@ -16,6 +16,16 @@ import { HttpInewsClientOptions, HttpInewsHealth, InewsHttpProxyConfig } from '.
  */
 const MAX_CONCURRENT_REQUESTS = 5
 
+/** Discriminator the proxy puts on error responses it raised itself (see its ApiErrorCode). */
+const QUEUE_NOT_FOUND_CODE = 'QUEUE_NOT_FOUND'
+
+function isQueueNotFound(error: unknown): boolean {
+	if (!isAxiosError(error) || error.response?.status !== 404) {
+		return false
+	}
+	return (error.response.data as { code?: string } | undefined)?.code === QUEUE_NOT_FOUND_CODE
+}
+
 /**
  * An HTTP client for interacting with the iNews Gateway API.
  * This class handles all communication with the iNews server,
@@ -71,6 +81,14 @@ export class HttpInewsClient {
 			const response = await this._queue.add(() => this._http.get<INewsFTPStory[]>(url))
 			return response.data
 		} catch (error) {
+			// Only a 404 the proxy itself raised for this queue means "iNews has no such
+			// queue" - safe to report as empty, and the caller will delete its segments.
+			// A bare 404 from a misrouted request or wrong base URL means we never reached
+			// iNews at all, so it must stay an error rather than empty every rundown.
+			if (isQueueNotFound(error)) {
+				this._logger.warn(`Queue '${queueName}' not found, treating as empty`)
+				return []
+			}
 			this.handleError(error, `Failed to list stories for queue '${queueName}'`)
 		}
 	}
