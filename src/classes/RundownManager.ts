@@ -11,6 +11,14 @@ function isStory(f: INewsFTPStoryOrQueue): f is INewsFTPStory {
 	return f.filetype === 'story'
 }
 
+/** Brief pause before retrying, to let a momentarily busy iNews/proxy catch up. */
+const RETRY_DELAY_MS = 500
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/** Jittered so gateways sharing an iNews instance don't retry in lockstep after a common outage. */
+const retryDelay = () => RETRY_DELAY_MS + Math.random() * RETRY_DELAY_MS
+
 export class RundownManager {
 	constructor(private readonly _logger: Logger, private readonly httpClient: HttpInewsClient) {}
 
@@ -76,6 +84,7 @@ export class RundownManager {
 		const missing = segmentExternalIds.filter((id) => !stories.has(id))
 		if (missing.length) {
 			this._logger.warn(`Retrying download of ${missing.length} story/stories in ${queueName}`)
+			await sleep(retryDelay())
 			try {
 				// Re-lists the queue, so a story whose locator changed mid-flight is
 				// retried against its current one.
