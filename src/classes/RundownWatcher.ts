@@ -152,6 +152,8 @@ export class RundownWatcher extends EventEmitter {
 	private cachedPlaylistAssignments: Map<PlaylistId, ResolvedPlaylist> = new Map()
 	private cachedAssignedRundowns: Map<PlaylistId, Array<INewsRundown>> = new Map()
 	private skipCacheForRundown: Set<RundownId> = new Set()
+	/** Segments left out of the last cycle because iNews would not serve them. */
+	private segmentsFailedToFetch: Map<PlaylistId, Set<SegmentId>> = new Map()
 
 	public playlists: PlaylistCache = new Map()
 	public rundowns: RundownCache = new Map()
@@ -369,6 +371,10 @@ export class RundownWatcher extends EventEmitter {
 			}
 		}
 
+		const recovered = Array.from(this.segmentsFailedToFetch.get(playlistId) ?? []).filter((segmentId) =>
+			iNewsData.has(segmentId)
+		)
+
 		const segmentsToResolve: Array<UnrankedSegment> = []
 
 		playlist.segments.forEach((s) => {
@@ -523,6 +529,12 @@ export class RundownWatcher extends EventEmitter {
 		this.cachedINewsData = pendingINewsData
 		this.cachedPlaylistAssignments.set(playlistId, playlistAssignments)
 		this.cachedAssignedRundowns.set(playlistId, assignedRundowns)
+		this.segmentsFailedToFetch.set(playlistId, failedToFetch)
+		if (recovered.length) {
+			this.logger.info(
+				`Restored ${recovered.length} previously undownloadable segment(s) in ${playlistId}: ${recovered.join(', ')}`
+			)
+		}
 		for (const rundownId of skipCacheConsumed) {
 			this.skipCacheForRundown.delete(rundownId)
 		}

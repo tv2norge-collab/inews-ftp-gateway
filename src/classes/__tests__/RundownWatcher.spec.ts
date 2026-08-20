@@ -107,6 +107,33 @@ describe('RundownWatcher', () => {
 		expect(watcher.segments.has('seg2')).toBe(false)
 	})
 
+	it('logs when a segment that could not be downloaded finally comes back', async () => {
+		const { watcher, logger, rundownManager } = createWatcher()
+		const both = [
+			{ externalId: 'seg1', locator: 'L1' },
+			{ externalId: 'seg2', locator: 'L2' },
+		]
+		rundownManager.downloadRundown.mockResolvedValue(makeRundown(both))
+
+		// Cycle 1: seg2 will not download.
+		rundownManager.fetchINewsStoriesById.mockResolvedValue(makeStories([{ externalId: 'seg1', locator: 'L1' }]))
+		await watcher.checkINewsRundownById(QUEUE)
+		expect(logger.info).not.toHaveBeenCalledWith(expect.stringContaining('Restored'))
+
+		// Cycle 2: iNews serves it again.
+		rundownManager.fetchINewsStoriesById.mockResolvedValue(makeStories([{ externalId: 'seg2', locator: 'L2' }]))
+		await watcher.checkINewsRundownById(QUEUE)
+
+		expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Restored 1'))
+		expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('seg2'))
+		expect(watcher.segments.has('seg2')).toBe(true)
+
+		// Cycle 3: nothing outstanding, so nothing to announce.
+		logger.info.mockClear()
+		await watcher.checkINewsRundownById(QUEUE)
+		expect(logger.info).not.toHaveBeenCalledWith(expect.stringContaining('Restored'))
+	})
+
 	it('re-fetches an edited segment whose download failed, instead of trusting its new locator', async () => {
 		const { watcher, rundownManager } = createWatcher()
 
