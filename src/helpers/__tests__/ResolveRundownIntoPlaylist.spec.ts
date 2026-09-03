@@ -1,7 +1,7 @@
 import { literal } from '../../helpers'
 import { ResolvedPlaylist, ResolveRundownIntoPlaylist } from '../ResolveRundownIntoPlaylist'
 import { UnrankedSegment } from '../../classes/RundownWatcher'
-import { INewsStory, INewsFields } from '@tv2media/inews'
+import { makeINewsStory } from '../../classes/__tests__/__mocks__/mockSegments'
 
 type SegmentOptions = {
 	backTime?: string
@@ -10,140 +10,41 @@ type SegmentOptions = {
 	body?: string
 }
 
-function createUnrankedSegment(num: number, { backTime, cues, meta, body }: SegmentOptions = {}): UnrankedSegment {
-	let id = num.toString().padStart(2, '0')
-	return literal<UnrankedSegment>({
-		externalId: `segment-${id}`,
-		name: `Segment ${id}`,
-		modified: new Date(),
-		locator: '',
-		rundownId: 'test-rundown',
-		iNewsStory: literal<INewsStory>({
-			id,
-			identifier: id,
-			locator: '',
-			fields: literal<INewsFields>({
-				title: { value: '', attributes: {} },
-				modifyDate: { value: '', attributes: {} },
-				tapeTime: { value: '', attributes: {} },
-				audioTime: { value: '', attributes: {} },
-				totalTime: { value: '', attributes: {} },
-				cumeTime: { value: '', attributes: {} },
-				backTime: { value: backTime ?? '', attributes: {} },
-				pageNumber: { value: '', attributes: {} },
-				layout: { value: '', attributes: {} },
-				runsTime: { value: '', attributes: {} },
-				videoId: { value: '', attributes: {} },
-			}),
-			meta: meta ?? {},
-			cues: cues ?? [],
-			body: body ?? '',
-			attachments: {},
-		}),
-	})
-}
-
-function createContinuitySegment(num: number, { backTime, cues, meta, body }: SegmentOptions = {}): UnrankedSegment {
-	let id = num.toString().padStart(2, '0')
-	return literal<UnrankedSegment>({
-		externalId: `segment-${id}`,
-		name: `CONTINUITY`,
-		modified: new Date(),
-		locator: '',
-		rundownId: 'test-rundown',
-		iNewsStory: literal<INewsStory>({
-			id,
-			identifier: id,
-			locator: '',
-			fields: literal<INewsFields>({
-				title: { value: '', attributes: {} },
-				modifyDate: { value: '', attributes: {} },
-				tapeTime: { value: '', attributes: {} },
-				audioTime: { value: '', attributes: {} },
-				totalTime: { value: '', attributes: {} },
-				cumeTime: { value: '', attributes: {} },
-				backTime: { value: backTime ?? '', attributes: {} },
-				pageNumber: { value: '', attributes: {} },
-				layout: { value: '', attributes: {} },
-				runsTime: { value: '', attributes: {} },
-				videoId: { value: '', attributes: {} },
-			}),
-			meta: meta ?? {},
-			cues: cues ?? [],
-			body: body ?? '',
-			attachments: {},
-		}),
-	})
-}
-
-function createKlarOnAirSegment(num: number, { backTime, cues, meta, body }: SegmentOptions = {}): UnrankedSegment {
-	let id = num.toString().padStart(2, '0')
-	return literal<UnrankedSegment>({
-		externalId: `segment-${id}`,
-		name: `Klar on air`,
-		modified: new Date(),
-		locator: '',
-		rundownId: 'test-rundown',
-		iNewsStory: literal<INewsStory>({
-			id,
-			identifier: id,
-			locator: '',
-			fields: literal<INewsFields>({
-				title: { value: '', attributes: {} },
-				modifyDate: { value: '', attributes: {} },
-				tapeTime: { value: '', attributes: {} },
-				audioTime: { value: '', attributes: {} },
-				totalTime: { value: '', attributes: {} },
-				cumeTime: { value: '', attributes: {} },
-				backTime: { value: backTime ?? '', attributes: {} },
-				pageNumber: { value: '', attributes: {} },
-				layout: { value: '', attributes: {} },
-				runsTime: { value: '', attributes: {} },
-				videoId: { value: '', attributes: {} },
-			}),
-			meta: meta ?? {},
-			cues: cues ?? [],
-			body: body ?? '',
-			attachments: {},
-		}),
-	})
-}
-
-function createUnnamedSegment(
+function createSegment(
 	num: number,
-	segmentName: any,
-	{ cues, meta, body }: SegmentOptions = {}
+	name: string,
+	{ backTime, cues, meta, body }: SegmentOptions = {}
 ): UnrankedSegment {
-	let id = num.toString().padStart(2, '0')
+	const id = num.toString().padStart(2, '0')
 	return literal<UnrankedSegment>({
 		externalId: `segment-${id}`,
-		name: segmentName,
+		name,
 		modified: new Date(),
 		locator: '',
 		rundownId: 'test-rundown',
-		iNewsStory: literal<INewsStory>({
-			id,
-			identifier: id,
-			locator: '',
-			fields: literal<INewsFields>({
-				title: { value: '', attributes: {} },
-				modifyDate: { value: '', attributes: {} },
-				tapeTime: { value: '', attributes: {} },
-				audioTime: { value: '', attributes: {} },
-				totalTime: { value: '', attributes: {} },
-				cumeTime: { value: '', attributes: {} },
-				backTime: { value: '', attributes: {} },
-				pageNumber: { value: '', attributes: {} },
-				layout: { value: '', attributes: {} },
-				runsTime: { value: '', attributes: {} },
-				videoId: { value: '', attributes: {} },
-			}),
+		iNewsStory: makeINewsStory(id, {
 			meta: meta ?? {},
 			cues: cues ?? [],
 			body: body ?? '',
-			attachments: {},
+			fields: { backTime: { value: backTime ?? '', attributes: {} } },
 		}),
 	})
+}
+
+function createUnrankedSegment(num: number, options?: SegmentOptions): UnrankedSegment {
+	return createSegment(num, `Segment ${num.toString().padStart(2, '0')}`, options)
+}
+
+function createContinuitySegment(num: number, options?: SegmentOptions): UnrankedSegment {
+	return createSegment(num, 'CONTINUITY', options)
+}
+
+function createKlarOnAirSegment(num: number, options?: SegmentOptions): UnrankedSegment {
+	return createSegment(num, 'Klar on air', options)
+}
+
+function createUnnamedSegment(num: number, segmentName: any, options?: SegmentOptions): UnrankedSegment {
+	return createSegment(num, segmentName, options)
 }
 
 describe('Resolve Rundown Into Playlist', () => {

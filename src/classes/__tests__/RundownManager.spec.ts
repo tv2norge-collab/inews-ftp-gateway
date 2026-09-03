@@ -1,25 +1,73 @@
 import { RundownManager } from '../RundownManager'
 import { INewsStoryGW } from '../datastructures/Segment'
+import { makeINewsStory } from './__mocks__/mockSegments'
+import { HttpInewsClient } from '../../proxy/HttpInewsClient'
+import { mock, MockProxy } from 'jest-mock-extended'
+import { literal } from '../../helpers'
+import { INewsFTPStory } from '@tv2media/inews'
+import type { Logger } from 'pino'
 
 const LAYOUT: string = 'n'
 
-// Mock logger and httpClient
-const mockLogger = {
-	debug: jest.fn(),
-	data: jest.fn(() => ({ error: jest.fn() })),
-	error: jest.fn(),
-} as any
-
-const mockHttpClient = {
-	listStories: jest.fn(),
-	getStory: jest.fn(),
-} as any
-
+let mockHttpClient: MockProxy<HttpInewsClient>
 let testee: RundownManager
 
 describe('RundownManager', () => {
 	beforeEach(() => {
-		testee = new RundownManager(mockLogger, mockHttpClient)
+		mockHttpClient = mock<HttpInewsClient>()
+		testee = new RundownManager(mock<Logger>(), mockHttpClient)
+	})
+
+	describe('downloadINewsRundown', () => {
+		it('propagates a listing failure instead of returning an empty rundown', async () => {
+			mockHttpClient.listStories.mockRejectedValue(new Error('Server responded with status code 500'))
+
+			await expect(testee.downloadINewsRundown('QUEUE')).rejects.toThrow('Server responded with status code 500')
+		})
+	})
+
+	describe('fetchINewsStoriesById', () => {
+		const dirList: INewsFTPStory[] = [
+			literal<INewsFTPStory>({
+				filetype: 'story',
+				file: 's1:0A:0B',
+				identifier: 's1',
+				locator: '0A:0B',
+				storyName: 'Story 1',
+				modified: new Date(0),
+			}),
+		]
+
+		it('retries a failed story download once', async () => {
+			mockHttpClient.listStories.mockResolvedValue(dirList)
+			mockHttpClient.getStory
+				.mockRejectedValueOnce(new Error('Server responded with status code 500'))
+				.mockResolvedValueOnce(makeINewsStory('s1'))
+
+			const stories = await testee.fetchINewsStoriesById('QUEUE', ['s1'])
+
+			expect(stories.has('s1')).toBe(true)
+			expect(mockHttpClient.getStory).toHaveBeenCalledTimes(2)
+			// Re-listed so the retry uses the story's current locator.
+			expect(mockHttpClient.listStories).toHaveBeenCalledTimes(2)
+		})
+
+		it('gives up after the retry also fails', async () => {
+			mockHttpClient.listStories.mockResolvedValue(dirList)
+			mockHttpClient.getStory.mockRejectedValue(new Error('Server responded with status code 500'))
+
+			const stories = await testee.fetchINewsStoriesById('QUEUE', ['s1'])
+
+			expect(stories.size).toBe(0)
+			expect(mockHttpClient.getStory).toHaveBeenCalledTimes(2)
+		})
+
+		it('does not list the queue when there is nothing to fetch', async () => {
+			const stories = await testee.fetchINewsStoriesById('QUEUE', [])
+
+			expect(stories.size).toBe(0)
+			expect(mockHttpClient.listStories).not.toHaveBeenCalled()
+		})
 	})
 
 	describe('generateCuesFromLayoutField', () => {
@@ -107,28 +155,10 @@ describe('RundownManager', () => {
 })
 
 function createStory(layout?: string, body?: string): INewsStoryGW {
-	return {
-		id: '',
-		identifier: '',
-		fields: {
-			title: { value: '', attributes: {} },
-			modifyDate: { value: '', attributes: {} },
-			tapeTime: { value: '', attributes: {} },
-			audioTime: { value: '', attributes: {} },
-			totalTime: { value: '', attributes: {} },
-			cumeTime: { value: '', attributes: {} },
-			backTime: { value: '', attributes: {} },
-			pageNumber: { value: '', attributes: {} },
-			layout: { value: layout ?? '', attributes: {} },
-			runsTime: { value: '', attributes: {} },
-			videoId: { value: '', attributes: {} },
-		},
+	return makeINewsStory('', {
 		body: body ?? '<p></p>',
-		cues: [],
-		locator: '',
-		meta: {},
-		attachments: {},
-	}
+		fields: { layout: { value: layout ?? '', attributes: {} } },
+	})
 }
 
 function testCorrectCueReferenceInLink(numberOfExistingCues: number): void {

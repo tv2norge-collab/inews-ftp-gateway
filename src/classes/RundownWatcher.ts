@@ -7,16 +7,15 @@ import { InewsHttpHandler } from '../inewsHandler'
 import { StatusCode } from '@sofie-automation/shared-lib/dist/lib/status'
 import { CoreHandler } from '../coreHandler'
 import { SegmentRankings, SegmentRankingsInner } from './ParsedINewsToSegments'
-import { IngestPlaylist, IngestRundown, IngestSegment } from '@sofie-automation/blueprints-integration'
+import { IngestPlaylist } from '@sofie-automation/blueprints-integration'
 import { ResolvedPlaylist, ResolveRundownIntoPlaylist } from '../helpers/ResolveRundownIntoPlaylist'
 import { DiffPlaylist } from '../helpers/DiffPlaylist'
 import { PlaylistId, RundownId, SegmentId } from '../helpers/id'
 import { Mutex } from 'async-mutex'
 import { AssignRanksToSegments } from '../helpers/AssignRanksToSegments'
-import { CoreCallType, GenerateCoreCalls } from '../helpers/GenerateCoreCalls'
-import { assertUnreachable } from '../helpers'
+import { GenerateCoreCalls } from '../helpers/GenerateCoreCalls'
 import type { Logger } from 'pino'
-import { HttpInewsClient } from '../proxy/HttpInewsClient'
+import { CoreCallDispatcher } from './CoreCallDispatcher'
 
 dotenv.config()
 
@@ -136,41 +135,15 @@ export function IsReducedSegment(segment: any): segment is ReducedSegment {
 export class RundownWatcher extends EventEmitter {
 	on!: ((event: 'info', listener: (message: string) => void) => this) &
 		((event: 'error', listener: (error: any, stack?: any) => void) => this) &
-		((event: 'warning', listener: (message: string) => void) => this) &
-		((event: 'rundown_delete', listener: (rundownId: string) => void) => this) &
-		((event: 'rundown_create', listener: (rundownId: string, rundown: IngestRundown) => void) => this) &
-		((event: 'rundown_update', listener: (rundownId: string, rundown: IngestRundown) => void) => this) &
-		((event: 'rundown_metadata_update', listener: (rundownId: string, rundown: IngestRundown) => void) => this) &
-		((event: 'segment_delete', listener: (rundownId: string, segmentId: string) => void) => this) &
-		((
-			event: 'segment_create',
-			listener: (rundownId: string, segmentId: string, newSegment: IngestSegment) => void
-		) => this) &
-		((
-			event: 'segment_update',
-			listener: (rundownId: string, segmentId: string, newSegment: IngestSegment) => void
-		) => this) &
-		((
-			event: 'segment_ranks_update',
-			listener: (rundownId: string, newRanks: { [segmentExternalId: string]: number }) => void
-		) => this)
+		((event: 'warning', listener: (message: string) => void) => this)
 
 	emit!: ((event: 'info', message: string) => boolean) &
 		((event: 'error', message: string) => boolean) &
-		((event: 'warning', message: string) => boolean) &
-		((event: 'rundown_delete', rundownId: string) => boolean) &
-		((event: 'rundown_create', rundownId: string, rundown: IngestRundown) => boolean) &
-		((event: 'rundown_update', rundownId: string, rundown: IngestRundown) => boolean) &
-		((event: 'rundown_metadata_update', rundownId: string, rundown: IngestRundown) => boolean) &
-		((event: 'segment_delete', rundownId: string, segmentId: string) => boolean) &
-		((event: 'segment_create', rundownId: string, segmentId: string, newSegment: IngestSegment) => boolean) &
-		((event: 'segment_update', rundownId: string, segmentId: string, newSegment: IngestSegment) => boolean) &
-		((event: 'segment_ranks_update', rundownId: string, newRanks: { [segmentExternalId: string]: number }) => boolean)
+		((event: 'warning', message: string) => boolean)
 
 	public pollInterval: number = 2000
 	private pollTimer: NodeJS.Timeout | undefined
 
-	public rundownManager: RundownManager
 	private _logger: Logger
 	private previousRanks: SegmentRankings = new Map()
 	private lastForcedRankRecalculation: Map<RundownId, number> = new Map()
@@ -179,6 +152,8 @@ export class RundownWatcher extends EventEmitter {
 	private cachedPlaylistAssignments: Map<PlaylistId, ResolvedPlaylist> = new Map()
 	private cachedAssignedRundowns: Map<PlaylistId, Array<INewsRundown>> = new Map()
 	private skipCacheForRundown: Set<RundownId> = new Set()
+	/** Segments left out of the last cycle because iNews would not serve them. */
+	private segmentsFailedToFetch: Map<PlaylistId, Set<SegmentId>> = new Map()
 
 	public playlists: PlaylistCache = new Map()
 	public rundowns: RundownCache = new Map()
@@ -196,8 +171,9 @@ export class RundownWatcher extends EventEmitter {
 	 */
 	constructor(
 		private logger: Logger,
-		private iNewsConnection: HttpInewsClient,
 		private coreHandler: CoreHandler,
+		private rundownManager: RundownManager,
+		private coreCallDispatcher: CoreCallDispatcher,
 		private iNewsQueue: Array<string>,
 		private gatewayVersion: string,
 		private handler: InewsHttpHandler,
@@ -205,8 +181,6 @@ export class RundownWatcher extends EventEmitter {
 	) {
 		super()
 		this._logger = this.logger.child({ tag: this.constructor.name })
-
-		this.rundownManager = new RundownManager(this._logger, this.iNewsConnection)
 
 		if (!delayStart) {
 			this.startWatcher()
@@ -319,8 +293,14 @@ export class RundownWatcher extends EventEmitter {
 		}
 	}
 
-	async checkINewsRundownById(rundownId: string): Promise<ReducedRundown> {
-		const rundown = await this.rundownManager.downloadRundown(rundownId)
+	async checkINewsRundownById(rundownId: string): Promise<void> {
+		let rundown: ReducedRundown
+		try {
+			rundown = await this.rundownManager.downloadRundown(rundownId)
+		} catch (e) {
+			this.logger.error({ err: e }, `Failed to download rundown ${rundownId}, skipping this poll cycle`)
+			return
+		}
 		if (rundown.gatewayVersion === this.gatewayVersion) {
 			const release = await this.processingRundown.acquire()
 			try {
@@ -330,7 +310,6 @@ export class RundownWatcher extends EventEmitter {
 			}
 			release()
 		}
-		return rundown
 	}
 
 	private async processUpdatedRundown(playlistId: string, playlist: ReducedRundown) {
@@ -382,6 +361,20 @@ export class RundownWatcher extends EventEmitter {
 			pendingINewsData.set(externalId, data)
 		}
 
+		// Segments we wanted but couldn't download. Their listing entry must not be
+		// committed below, otherwise the locator would look up-to-date next cycle and
+		// we'd never re-fetch the content we're still missing.
+		const failedToFetch: Set<SegmentId> = new Set()
+		for (const segmentId of uncachedINewsData) {
+			if (!iNewsData.has(segmentId)) {
+				failedToFetch.add(segmentId)
+			}
+		}
+
+		const recovered = Array.from(this.segmentsFailedToFetch.get(playlistId) ?? []).filter((segmentId) =>
+			iNewsData.has(segmentId)
+		)
+
 		const segmentsToResolve: Array<UnrankedSegment> = []
 
 		playlist.segments.forEach((s) => {
@@ -411,9 +404,13 @@ export class RundownWatcher extends EventEmitter {
 		// Fetch ingestDataCache for segments that have been modified
 		const ingestDataPromises: Array<Promise<Map<SegmentId, RundownSegment>>> = []
 
+		// Cleared on commit, not here - an abandoned cycle must leave the flag in place
+		// so the retry still skips the cache.
+		const skipCacheConsumed: RundownId[] = []
+
 		for (const rundown of playlistAssignments) {
 			if (this.skipCacheForRundown.has(rundown.rundownId)) {
-				this.skipCacheForRundown.delete(rundown.rundownId)
+				skipCacheConsumed.push(rundown.rundownId)
 				continue
 			}
 
@@ -481,6 +478,12 @@ export class RundownWatcher extends EventEmitter {
 			this.cachedAssignedRundowns.get(playlistId) ?? []
 		)
 
+		if (failedToFetch.size) {
+			this.logger.error(
+				`Sending ${playlistId} without ${failedToFetch.size} segment(s) that could not be downloaded after a retry. They will be restored once iNews serves them again.`
+			)
+		}
+
 		let segmentRanks = AssignRanksToSegments(
 			playlistAssignments,
 			changes,
@@ -511,12 +514,30 @@ export class RundownWatcher extends EventEmitter {
 			untimedSegments
 		)
 
-		// All processing succeeded — commit all state atomically.
-		// Nothing above this line mutates instance state, so any throw above
+		try {
+			await this.coreCallDispatcher.dispatchAll(coreCalls)
+		} catch {
+			// Already logged inside dispatchAll. Bail out without committing local
+			// cache, so the next poll cycle re-diffs from last-known-good state and
+			// retries the whole batch instead of silently drifting out of sync with Core.
+			return
+		}
+
+		// All Core calls landed — commit local state atomically.
+		// Nothing above this line mutates instance state, so any throw or rejection above
 		// leaves the cache at last-known-good and the next poll retries cleanly.
 		this.cachedINewsData = pendingINewsData
 		this.cachedPlaylistAssignments.set(playlistId, playlistAssignments)
 		this.cachedAssignedRundowns.set(playlistId, assignedRundowns)
+		this.segmentsFailedToFetch.set(playlistId, failedToFetch)
+		if (recovered.length) {
+			this.logger.info(
+				`Restored ${recovered.length} previously undownloadable segment(s) in ${playlistId}: ${recovered.join(', ')}`
+			)
+		}
+		for (const rundownId of skipCacheConsumed) {
+			this.skipCacheForRundown.delete(rundownId)
+		}
 		for (const { rundownId, assignedRanks: ranks } of pendingPreviousRanks) {
 			this.updatePreviousRanks(rundownId, ranks)
 		}
@@ -524,6 +545,7 @@ export class RundownWatcher extends EventEmitter {
 			this.lastForcedRankRecalculation.set(rundownId, timestamp)
 		}
 		for (const segment of playlist.segments) {
+			if (failedToFetch.has(segment.externalId)) continue
 			this.segments.set(segment.externalId, segment)
 		}
 		for (const rundown of playlistAssignments) {
@@ -533,37 +555,6 @@ export class RundownWatcher extends EventEmitter {
 			playlistId,
 			playlistAssignments.map((r) => r.rundownId)
 		)
-
-		for (const call of coreCalls) {
-			switch (call.type) {
-				case CoreCallType.dataRundownCreate:
-					this.emitRundownCreated(call.rundown)
-					break
-				case CoreCallType.dataRundownDelete:
-					this.emitRundownDeleted(call.rundownExternalId)
-					break
-				case CoreCallType.dataRundownUpdate:
-					this.emitRundownUpdated(call.rundown)
-					break
-				case CoreCallType.dataSegmentCreate:
-					this.emitSegmentCreated(call.rundownExternalId, call.segment)
-					break
-				case CoreCallType.dataSegmentDelete:
-					this.emitSegmentDeleted(call.rundownExternalId, call.segmentExternalId)
-					break
-				case CoreCallType.dataSegmentUpdate:
-					this.emitSegmentUpdated(call.rundownExternalId, call.segment)
-					break
-				case CoreCallType.dataSegmentRanksUpdate:
-					this.emitUpdatedSegmentRanks(call.rundownExternalId, call.ranks)
-					break
-				case CoreCallType.dataRundownMetaDataUpdate:
-					this.emitRundownMetaDataUpdated(call.rundown)
-					break
-				default:
-					assertUnreachable(call)
-			}
-		}
 	}
 
 	private updatePreviousRanks(rundownId: RundownId, segments: Map<SegmentId, number>) {
@@ -574,45 +565,5 @@ export class RundownWatcher extends EventEmitter {
 			})
 		}
 		this.previousRanks.set(rundownId, ranksMap)
-	}
-
-	private emitRundownDeleted(rundownExternalId: string) {
-		this.logger.info(`Emitting rundown delete ${rundownExternalId}`)
-		this.emit('rundown_delete', rundownExternalId)
-	}
-
-	private emitRundownCreated(rundown: IngestRundown) {
-		this.logger.info(`Emitting rundown create ${rundown.externalId}`)
-		this.emit('rundown_create', rundown.externalId, rundown)
-	}
-
-	private emitRundownUpdated(rundown: IngestRundown) {
-		this.logger.info(`Emitting rundown update ${rundown.externalId}`)
-		this.emit('rundown_update', rundown.externalId, rundown)
-	}
-
-	private emitRundownMetaDataUpdated(rundown: IngestRundown) {
-		this.logger.info(`Emitting rundown metadata update ${rundown.externalId}`)
-		this.emit('rundown_metadata_update', rundown.externalId, rundown)
-	}
-
-	private emitSegmentCreated(rundownId: RundownId, segment: IngestSegment) {
-		this.logger.info(`Emitting segment create ${segment.externalId} in ${rundownId}`)
-		this.emit('segment_create', rundownId, segment.externalId, segment)
-	}
-
-	private emitSegmentUpdated(rundownId: RundownId, segment: IngestSegment) {
-		this.logger.info(`Emitting segment update ${segment.externalId} in ${rundownId}`)
-		this.emit('segment_update', rundownId, segment.externalId, segment)
-	}
-
-	public emitSegmentDeleted(rundownId: RundownId, segmentId: SegmentId) {
-		this.logger.info(`Emitting segment delete ${segmentId} in ${rundownId}`)
-		this.emit('segment_delete', rundownId, segmentId)
-	}
-
-	private emitUpdatedSegmentRanks(rundownId: RundownId, ranks: { [segmentId: string]: number }) {
-		this.logger.info(`Emitting segment ranks update ${rundownId}`)
-		this.emit('segment_ranks_update', rundownId, ranks)
 	}
 }
